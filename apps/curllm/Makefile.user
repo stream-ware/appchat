@@ -1,0 +1,41 @@
+# CurlLM - User Commands
+.PHONY: help status models query chat history clear translate summarize explain code
+
+help:
+	@echo "🤖 CurlLM - User Commands"
+	@echo "  status     - Check LLM connection"
+	@echo "  models     - List available models"
+	@echo "  query      - Ask LLM (PROMPT='your question')"
+	@echo "  history    - Show chat history"
+	@echo "  clear      - Clear history"
+	@echo "  translate  - Translate text (TEXT='...' LANG=en)"
+	@echo "  summarize  - Summarize text (TEXT='...')"
+	@echo "  explain    - Explain topic (TOPIC='...')"
+	@echo "  code       - Generate code (DESC='...' LANG=python)"
+
+status:
+	@python3 scripts/curllm_client.py status
+
+models:
+	@python3 scripts/curllm_client.py models
+
+query:
+	@python3 scripts/curllm_client.py query "$(PROMPT)"
+
+history:
+	@python3 scripts/curllm_client.py history
+
+clear:
+	@python3 scripts/curllm_client.py clear
+
+translate:
+	@python3 scripts/curllm_client.py translate "$(TEXT)" $(LANG)
+
+summarize:
+	@python3 scripts/curllm_client.py summarize "$(TEXT)"
+
+explain:
+	@python3 scripts/curllm_client.py explain "$(TOPIC)"
+
+code:
+	@python3 scripts/curllm_client.py code "$(DESC)" $(LANG)

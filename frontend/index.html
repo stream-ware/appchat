@@ -1810,11 +1810,313 @@ Przykładowe komendy:
                 contentEl.innerHTML = renderLoginView(view);
             } else if (view.type === 'system') {
                 contentEl.innerHTML = renderSystemView(view);
+            } else if (view.type === 'files') {
+                contentEl.innerHTML = renderFilesView(view);
+            } else if (view.type === 'cloud_storage') {
+                contentEl.innerHTML = renderCloudStorageView(view);
+            } else if (view.type === 'curllm') {
+                contentEl.innerHTML = renderCurllmView(view);
+            } else if (view.type === 'registry') {
+                contentEl.innerHTML = renderRegistryView(view);
+            } else if (view.view === 'empty_state') {
+                contentEl.innerHTML = renderEmptyStateView(view);
             } else if (view.type === 'empty') {
                 contentEl.innerHTML = renderAppsDashboard(view);
             } else {
                 contentEl.innerHTML = renderGenericView(view);
             }
+        }
+        
+        function renderEmptyStateView(view) {
+            let html = '<div class="empty-state-view">';
+            
+            // Empty state message
+            html += `
+                <div class="empty-state-box">
+                    <div class="empty-icon">📭</div>
+                    <h2>${view.empty_message || 'Brak danych'}</h2>
+                    <p class="empty-instructions">${view.empty_instructions || ''}</p>
+                </div>
+            `;
+            
+            // Stats (showing zeros)
+            if (view.stats) {
+                html += '<div class="stats-grid empty">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-value">${stat.value}</div>
+                            <div class="stat-label">${stat.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Quick actions to get started
+            if (view.quick_actions) {
+                html += '<div class="quick-actions-section"><h3>🚀 Rozpocznij</h3><div class="quick-actions-grid">';
+                view.quick_actions.forEach(action => {
+                    html += `<button class="quick-action-btn primary" onclick="sendCommand('${action.cmd}')">${action.icon || ''} ${action.label}</button>`;
+                });
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function renderFilesView(view) {
+            let html = '<div class="files-dashboard">';
+            
+            // Stats
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-value">${stat.value}</div>
+                            <div class="stat-label">${stat.label}</div>
+                            ${stat.detail ? `<div class="stat-detail">${stat.detail}</div>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Quick actions
+            if (view.quick_actions) {
+                html += '<div class="quick-actions-grid">';
+                view.quick_actions.forEach(action => {
+                    html += `<button class="quick-action-btn" onclick="sendCommand('${action.cmd}')">${action.icon || ''} ${action.label}</button>`;
+                });
+                html += '</div>';
+            }
+            
+            // Recent files
+            if (view.recent_files && view.recent_files.length > 0) {
+                html += '<div class="recent-files"><h3>🕐 Ostatnie pliki</h3><div class="files-list">';
+                view.recent_files.forEach(file => {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const icon = {'pdf': '📄', 'doc': '📝', 'docx': '📝', 'xls': '📊', 'xlsx': '📊', 'jpg': '🖼️', 'png': '🖼️', 'zip': '📦'}[ext] || '📄';
+                    html += `
+                        <div class="file-item" onclick="sendCommand('otwórz ${file.name}')">
+                            <span class="file-icon">${icon}</span>
+                            <span class="file-name">${file.name}</span>
+                            <span class="file-size">${file.size}</span>
+                            <span class="file-date">${file.modified}</span>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function renderCloudStorageView(view) {
+            let html = '<div class="cloud-dashboard">';
+            
+            // Check if this is a connect form
+            if (view.view === 'connect_form') {
+                html += `
+                    <div class="connect-form-container">
+                        <div class="form-header">
+                            <h2>${view.title}</h2>
+                            <p>${view.instructions}</p>
+                        </div>
+                        <form id="cloud-connect-form" class="connect-form">
+                            <input type="hidden" name="provider_id" value="${view.provider_id}">
+                `;
+                
+                view.form_fields.forEach(field => {
+                    html += `
+                        <div class="form-group">
+                            <label for="${field.id}">${field.label}</label>
+                            <input type="${field.type}" id="${field.id}" name="${field.id}" placeholder="${field.label}" required>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </form>
+                        <div class="form-actions">
+                            <button class="btn-primary" onclick="saveCloudConnection('${view.provider_id}')">💾 Zapisz połączenie</button>
+                            <button class="btn-secondary" onclick="sendCommand('chmura')">❌ Anuluj</button>
+                        </div>
+                    </div>
+                `;
+                html += '</div>';
+                return html;
+            }
+            
+            // Stats
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-value">${stat.value}</div>
+                            <div class="stat-label">${stat.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Providers
+            if (view.providers) {
+                html += '<div class="providers-grid">';
+                view.providers.forEach(provider => {
+                    const statusClass = provider.status === 'connected' ? 'connected' : 'disconnected';
+                    html += `
+                        <div class="provider-card ${statusClass}" onclick="sendCommand('połącz ${provider.id}')">
+                            <div class="provider-icon">${provider.icon}</div>
+                            <div class="provider-name">${provider.name}</div>
+                            <div class="provider-status">${provider.status === 'connected' ? '✅ Połączony' : '🔗 Połącz'}</div>
+                            ${provider.last_sync ? `<div class="provider-sync">Sync: ${provider.last_sync}</div>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Quick actions
+            if (view.quick_actions) {
+                html += '<div class="quick-actions-grid">';
+                view.quick_actions.forEach(action => {
+                    html += `<button class="quick-action-btn" onclick="sendCommand('${action.cmd}')">${action.icon || ''} ${action.label}</button>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function saveCloudConnection(providerId) {
+            const form = document.getElementById('cloud-connect-form');
+            const formData = new FormData(form);
+            const data = {};
+            formData.forEach((value, key) => data[key] = value);
+            
+            // Send to backend via action
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'action',
+                    app_type: 'cloud_storage',
+                    action: 'save_connection',
+                    params: {
+                        provider_id: providerId,
+                        ...data
+                    }
+                }));
+                addChatMessage('bot', `Zapisuję połączenie z ${providerId}...`);
+            }
+        }
+        
+        function renderRegistryView(view) {
+            let html = '<div class="registry-dashboard">';
+            
+            // Stats
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-value">${stat.value}</div>
+                            <div class="stat-label">${stat.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Registries list
+            if (view.registries && view.registries.length > 0) {
+                html += '<div class="registries-list"><h3>📦 Rejestry</h3><div class="registries-grid">';
+                view.registries.forEach(reg => {
+                    const statusIcon = reg.enabled ? '✅' : '⏸️';
+                    const typeIcon = {'local': '📁', 'docker': '🐳', 'git': '📂', 'http': '🌐', 'npm': '📦', 'pip': '🐍'}[reg.type] || '📦';
+                    html += `
+                        <div class="registry-card ${reg.enabled ? 'enabled' : 'disabled'}">
+                            <div class="registry-header">
+                                <span class="registry-icon">${typeIcon}</span>
+                                <span class="registry-name">${reg.name}</span>
+                                <span class="registry-status">${statusIcon}</span>
+                            </div>
+                            <div class="registry-info">
+                                <div class="registry-type">${reg.type}</div>
+                                <div class="registry-url">${reg.url}</div>
+                                <div class="registry-apps">${reg.apps_count} apps</div>
+                            </div>
+                            <div class="registry-actions">
+                                <button onclick="sendCommand('synchronizuj ${reg.id}')">🔄 Sync</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            } else {
+                html += '<div class="empty-registries"><p>Brak skonfigurowanych rejestrów</p></div>';
+            }
+            
+            // Quick actions
+            if (view.quick_actions) {
+                html += '<div class="quick-actions-grid">';
+                view.quick_actions.forEach(action => {
+                    html += `<button class="quick-action-btn" onclick="sendCommand('${action.cmd}')">${action.icon || ''} ${action.label}</button>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function renderCurllmView(view) {
+            let html = '<div class="curllm-dashboard">';
+            
+            // Stats
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-value">${stat.value}</div>
+                            <div class="stat-label">${stat.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Models
+            if (view.models && view.models.length > 0) {
+                html += '<div class="models-list"><h3>🧠 Dostępne modele</h3><div class="models-grid">';
+                view.models.forEach(model => {
+                    html += `<button class="model-btn" onclick="sendCommand('zmień model ${model}')">${model}</button>`;
+                });
+                html += '</div></div>';
+            }
+            
+            // Quick actions
+            if (view.quick_actions) {
+                html += '<div class="quick-actions-grid">';
+                view.quick_actions.forEach(action => {
+                    html += `<button class="quick-action-btn" onclick="sendCommand('${action.cmd}')">${action.icon || ''} ${action.label}</button>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
         }
         
         function renderAppsDashboard(view) {
@@ -2568,7 +2870,7 @@ Przykładowe komendy:
         }
         
         // ===== LANGUAGE STATE =====
-        let currentLanguage = 'pl';
+        // currentLanguage already declared in LANGUAGE MANAGEMENT section
         let translations = {};
         
         // ===== CONFIG MODAL =====

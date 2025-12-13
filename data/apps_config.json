@@ -235,10 +235,13 @@
       "połącz nextcloud": "connect_nextcloud",
       "połącz google drive": "connect_gdrive",
       "pokaż chmurę": "list_cloud",
+      "chmura": "list_cloud",
       "sync pliki": "sync_files",
+      "synchronizuj": "sync_files",
       "upload": "upload_file",
       "download": "download_file",
-      "status chmury": "cloud_status"
+      "status chmury": "cloud_status",
+      "stan chmury": "cloud_status"
     },
     "shell": {
       "wykonaj": "execute",
@@ -251,6 +254,24 @@
       "pokaż tabele": "list_tables",
       "pokaż użytkowników": "list_users",
       "zapytanie sql": "query"
+    },
+    "curllm": {
+      "zapytaj llm": "query",
+      "chat llm": "chat",
+      "modele": "list_models",
+      "lista modeli": "list_models",
+      "zmień model": "set_model",
+      "historia llm": "history",
+      "historia chatu": "history",
+      "wyczyść chat": "clear",
+      "status llm": "status",
+      "status modelu": "status",
+      "przetłumacz": "translate",
+      "podsumuj": "summarize",
+      "wyjaśnij": "explain",
+      "kod": "code",
+      "generuj kod": "code",
+      "napisz kod": "code"
     }
   },
   "keywords": {
@@ -268,6 +289,7 @@
     "files": ["plik", "folder", "katalog", "directory", "pobran", "document"],
     "cloud_storage": ["chmur", "cloud", "onedrive", "nextcloud", "google drive", "sync", "upload", "download"],
     "shell": ["wykonaj", "uruchom", "terminal", "bash", "shell", "komenda"],
-    "database": ["baza", "sql", "tabela", "rekord", "zapytanie"]
+    "database": ["baza", "sql", "tabela", "rekord", "zapytanie"],
+    "curllm": ["llm", "ai", "chat", "gpt", "ollama", "claude", "model", "zapytaj", "przetłumacz", "podsumuj", "wyjaśnij"]
   }
 }

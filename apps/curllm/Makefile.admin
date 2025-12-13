@@ -1,0 +1,23 @@
+# CurlLM - Admin Commands
+.PHONY: help install configure set-model set-provider
+
+help:
+	@echo "🤖 CurlLM - Admin Commands"
+	@echo "  install      - Install curllm library"
+	@echo "  configure    - Configure LLM settings"
+	@echo "  set-model    - Set model (MODEL=llama2)"
+	@echo "  set-provider - Set provider (PROVIDER=ollama)"
+
+install:
+	pip install curllm httpx
+	@echo "✅ CurlLM installed"
+
+configure:
+	@echo "Configuration file: data/config.json"
+	@cat data/config.json 2>/dev/null || echo '{"provider": "ollama", "model": "llama2"}'
+
+set-model:
+	@python3 scripts/curllm_client.py set-model "$(MODEL)"
+
+set-provider:
+	@python3 -c "import json; c=json.load(open('data/config.json')) if __import__('pathlib').Path('data/config.json').exists() else {}; c['provider']='$(PROVIDER)'; json.dump(c,open('data/config.json','w'),indent=2); print('Provider set to $(PROVIDER)')"

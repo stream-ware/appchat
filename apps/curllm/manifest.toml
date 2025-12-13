@@ -1,0 +1,48 @@
+[app]
+id = "curllm"
+name = "🤖 CurlLM Client"
+version = "1.0.0"
+description = "Universal LLM client using curllm library - supports Ollama, OpenAI, Anthropic, and more"
+author = "Streamware"
+enabled = true
+
+[permissions]
+requires = ["network", "llm"]
+role = "user"
+
+[commands]
+"zapytaj llm" = "query"
+"chat" = "chat"
+"modele" = "list_models"
+"zmień model" = "set_model"
+"historia" = "history"
+"wyczyść chat" = "clear"
+"konfiguruj llm" = "configure"
+"status llm" = "status"
+"przetłumacz" = "translate"
+"podsumuj" = "summarize"
+"wyjaśnij" = "explain"
+"kod" = "code"
+
+[keywords]
+match = ["llm", "ai", "chat", "gpt", "ollama", "claude", "model", "zapytaj", "przetłumacz", "podsumuj"]
+
+[scripts]
+curllm_client = "scripts/curllm_client.py"
+model_manager = "scripts/model_manager.py"
+
+[ui]
+icon = "🤖"
+color = "#8b5cf6"
+
+[settings]
+default_provider = "ollama"
+default_model = "llama2"
+max_history = 50
+temperature = 0.7
+max_tokens = 2048
+
+[providers]
+ollama = { url = "http://localhost:11434", models = ["llama2", "mistral", "codellama"] }
+openai = { models = ["gpt-4", "gpt-3.5-turbo"] }
+anthropic = { models = ["claude-3-sonnet", "claude-3-haiku"] }

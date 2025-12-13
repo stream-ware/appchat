@@ -39,6 +39,7 @@ from backend.registry_manager import registry_manager, RegistryManager
 from backend.language_manager import language_manager, LanguageManager
 from backend.app_generator import app_generator, AppGenerator
 from backend.data_loader import data_loader, DataLoader
+from services.context.conversation_context import context_manager
 try:
     import aiomqtt
     MQTT_AVAILABLE = True
@@ -909,8 +910,12 @@ class VoiceCommandProcessor:
         command_lower = command.lower().strip()
         logger.info(f"📝 Processing command: '{command}'")
         
+        # Sort intents by pattern length (longest first) for better matching
+        # This ensures "status chmury" matches before "status"
+        sorted_intents = sorted(cls._get_intents().items(), key=lambda x: len(x[0]), reverse=True)
+        
         # Find matching intent
-        for pattern, (app_type, action) in cls._get_intents().items():
+        for pattern, (app_type, action) in sorted_intents:
             if pattern in command_lower:
                 # Extract parameters from command
                 params = cls._extract_params(command, app_type, action)
@@ -980,7 +985,15 @@ class ViewGenerator:
             return cls._generate_internet_view(action, data)
         elif app_type == "system":
             return cls._generate_system_view(action)
-        elif app_type in ["services", "monitoring", "backup", "registry", "notifications"]:
+        elif app_type == "files":
+            return cls._generate_files_view(action, data)
+        elif app_type == "cloud_storage":
+            return cls._generate_cloud_storage_view(action, data)
+        elif app_type == "curllm":
+            return cls._generate_curllm_view(action, data)
+        elif app_type == "registry":
+            return cls._generate_registry_view(action, data)
+        elif app_type in ["services", "monitoring", "backup", "notifications"]:
             return cls._generate_modular_app_view(app_type, action, data)
         else:
             return cls._generate_empty_view()
@@ -1037,18 +1050,15 @@ class ViewGenerator:
     
     @classmethod
     def _generate_documents_view(cls, action: str, data: List[Document] = None) -> Dict:
-        if data is None:
-            data = DataSimulator.generate_documents(8)
-        
-        docs_data = [asdict(d) for d in data]
-        total_gross = sum(d.amount_gross for d in data)
-        unpaid = len([d for d in data if d.status != "Zapłacona"])
-        
+        """Generate documents view - shows real data or empty state"""
+        # No simulated data - show empty state with instructions
         return {
             "type": "documents",
-            "view": "table",
-            "title": "📄 Zeskanowane dokumenty",
-            "subtitle": f"{len(data)} dokumentów | Suma: {total_gross:,.2f} PLN | Do zapłaty: {unpaid}",
+            "view": "empty_state",
+            "title": "📄 Dokumenty",
+            "subtitle": "System zarządzania dokumentami i fakturami",
+            "empty_message": "Brak dokumentów w systemie",
+            "empty_instructions": "Użyj komendy 'zeskanuj fakturę' aby dodać nowy dokument lub połącz się z zewnętrznym systemem księgowym.",
             "columns": [
                 {"key": "filename", "label": "Plik", "width": "15%"},
                 {"key": "vendor", "label": "Dostawca", "width": "20%"},
@@ -1058,175 +1068,124 @@ class ViewGenerator:
                 {"key": "due_date", "label": "Termin", "width": "10%"},
                 {"key": "status", "label": "Status", "width": "10%", "format": "badge"},
             ],
-            "data": docs_data,
+            "data": [],
             "stats": [
-                {"label": "Dokumentów", "value": len(data), "icon": "📄"},
-                {"label": "Suma brutto", "value": f"{total_gross:,.2f} PLN", "icon": "💰"},
-                {"label": "Do zapłaty", "value": unpaid, "icon": "⏰"},
-                {"label": "Dostawców", "value": len(set(d.vendor for d in data)), "icon": "🏢"},
+                {"label": "Dokumentów", "value": 0, "icon": "📄"},
+                {"label": "Suma brutto", "value": "0 PLN", "icon": "💰"},
+                {"label": "Do zapłaty", "value": 0, "icon": "⏰"},
+            ],
+            "quick_actions": [
+                {"cmd": "zeskanuj fakturę", "label": "📷 Skanuj dokument", "icon": "📷"},
+                {"cmd": "połącz księgowość", "label": "🔗 Połącz z systemem", "icon": "🔗"},
             ],
             "actions": [
                 {"id": "scan", "label": "Skanuj nową", "icon": "📷"},
-                {"id": "export", "label": "Eksportuj", "icon": "📥"},
-                {"id": "filter", "label": "Filtruj", "icon": "🔍"},
+                {"id": "import", "label": "Importuj", "icon": "📥"},
             ]
         }
     
     @classmethod
     def _generate_cameras_view(cls, action: str, data: List[CameraFeed] = None) -> Dict:
-        if data is None:
-            data = DataSimulator.generate_cameras(4)
-        
-        cameras_data = [asdict(c) for c in data]
-        online = len([c for c in data if c.status == "online"])
-        total_objects = sum(c.objects_detected for c in data)
-        alerts_count = sum(len(c.alerts) for c in data)
-        
+        """Generate cameras view - shows real cameras or empty state"""
+        # No simulated data - show empty state
         return {
             "type": "cameras",
-            "view": "matrix",
-            "title": "🎥 Monitoring - Podgląd kamer",
-            "subtitle": f"{online}/{len(data)} online | Wykryto obiektów: {total_objects} | Alerty: {alerts_count}",
-            "grid": {
-                "columns": 2,
-                "rows": 2
-            },
-            "cameras": cameras_data,
+            "view": "empty_state",
+            "title": "🎥 Monitoring",
+            "subtitle": "System monitoringu CCTV",
+            "empty_message": "Brak skonfigurowanych kamer",
+            "empty_instructions": "Dodaj kamery RTSP/ONVIF lub połącz z systemem monitoringu.",
+            "cameras": [],
             "stats": [
-                {"label": "Kamery online", "value": f"{online}/{len(data)}", "icon": "🟢"},
-                {"label": "Wykryte obiekty", "value": total_objects, "icon": "👤"},
-                {"label": "Aktywne alerty", "value": alerts_count, "icon": "🚨"},
-                {"label": "Ostatni ruch", "value": data[0].last_motion if data else "-", "icon": "⏱️"},
+                {"label": "Kamery", "value": 0, "icon": "🎥"},
+                {"label": "Online", "value": 0, "icon": "✅"},
+                {"label": "Alerty", "value": 0, "icon": "🔔"},
+            ],
+            "quick_actions": [
+                {"cmd": "dodaj kamerę", "label": "➕ Dodaj kamerę", "icon": "➕"},
+                {"cmd": "skanuj sieć", "label": "🔍 Skanuj sieć", "icon": "🔍"},
             ],
             "actions": [
-                {"id": "fullscreen", "label": "Pełny ekran", "icon": "🖥️"},
-                {"id": "record", "label": "Nagrywaj", "icon": "⏺️"},
-                {"id": "alerts", "label": "Alerty", "icon": "🔔"},
+                {"id": "add_camera", "label": "Dodaj kamerę", "icon": "➕"},
+                {"id": "scan_network", "label": "Skanuj sieć", "icon": "🔍"},
             ]
         }
     
     @classmethod
     def _generate_sales_view(cls, action: str, data: List[SalesData] = None) -> Dict:
-        if data is None:
-            data = DataSimulator.generate_sales()
-        
-        sales_data = [asdict(s) for s in data]
-        total_amount = sum(s.amount for s in data)
-        total_transactions = sum(s.transactions for s in data)
-        avg_growth = sum(s.growth for s in data) / len(data)
-        
-        # Sort for chart
-        sorted_data = sorted(data, key=lambda x: x.amount, reverse=True)
-        
+        """Generate sales view - shows empty state without fake data"""
         return {
             "type": "sales",
-            "view": "dashboard",
-            "title": "📊 Dashboard sprzedaży",
-            "subtitle": f"Suma: {total_amount:,.2f} PLN | Transakcji: {total_transactions} | Wzrost: {avg_growth:+.1f}%",
-            "chart": {
-                "type": "bar",
-                "labels": [s.region for s in sorted_data],
-                "datasets": [{
-                    "label": "Sprzedaż (PLN)",
-                    "data": [s.amount for s in sorted_data],
-                    "backgroundColor": ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
-                }]
-            },
-            "table": {
-                "columns": [
-                    {"key": "region", "label": "Region"},
-                    {"key": "amount", "label": "Sprzedaż", "format": "currency"},
-                    {"key": "transactions", "label": "Transakcje"},
-                    {"key": "growth", "label": "Wzrost", "format": "percent"},
-                    {"key": "top_product", "label": "Top produkt"},
-                ],
-                "data": sales_data
-            },
+            "view": "empty_state",
+            "title": "📊 Sprzedaż",
+            "subtitle": "Dashboard sprzedaży i raportów",
+            "empty_message": "Brak danych sprzedażowych",
+            "empty_instructions": "Połącz z systemem CRM lub zaimportuj dane sprzedażowe.",
             "stats": [
-                {"label": "Suma sprzedaży", "value": f"{total_amount:,.0f} PLN", "icon": "💰"},
-                {"label": "Transakcji", "value": total_transactions, "icon": "🛒"},
-                {"label": "Śr. wzrost", "value": f"{avg_growth:+.1f}%", "icon": "📈"},
-                {"label": "Regionów", "value": len(data), "icon": "🗺️"},
+                {"label": "Sprzedaż", "value": "0 PLN", "icon": "💰"},
+                {"label": "Transakcji", "value": 0, "icon": "🛒"},
+                {"label": "Regionów", "value": 0, "icon": "🗺️"},
+            ],
+            "quick_actions": [
+                {"cmd": "importuj sprzedaż", "label": "📥 Importuj dane", "icon": "📥"},
+                {"cmd": "połącz crm", "label": "🔗 Połącz CRM", "icon": "🔗"},
             ],
             "actions": [
-                {"id": "export", "label": "Eksportuj PDF", "icon": "📄"},
-                {"id": "compare", "label": "Porównaj", "icon": "⚖️"},
-                {"id": "details", "label": "Szczegóły", "icon": "🔍"},
+                {"id": "import", "label": "Importuj", "icon": "📥"},
+                {"id": "connect_crm", "label": "Połącz CRM", "icon": "🔗"},
             ]
         }
     
     @classmethod
     def _generate_home_view(cls, action: str, data: Any = None) -> Dict:
-        """Generate smart home dashboard"""
-        rooms = ["Salon", "Sypialnia", "Kuchnia", "Łazienka", "Biuro"]
-        
-        sensors_data = []
-        for room in rooms:
-            sensors_data.append({
-                "room": room,
-                "temperature": round(random.uniform(18, 26), 1),
-                "humidity": random.randint(30, 70),
-                "light_on": random.choice([True, False]),
-                "motion": random.choice([True, False, False, False]),
-            })
-        
-        total_power = round(random.uniform(1.5, 8.5), 2)
-        
+        """Generate smart home dashboard - shows empty state without fake data"""
         return {
             "type": "home",
-            "view": "smart_home",
-            "title": "🏠 Smart Home Dashboard",
-            "subtitle": f"Temperatura średnia: {sum(s['temperature'] for s in sensors_data)/len(sensors_data):.1f}°C | Zużycie: {total_power} kW",
-            "rooms": sensors_data,
+            "view": "empty_state",
+            "title": "🏠 Smart Home",
+            "subtitle": "Inteligentny dom i automatyka",
+            "empty_message": "Brak połączonych urządzeń IoT",
+            "empty_instructions": "Połącz z Home Assistant, MQTT broker lub dodaj urządzenia IoT.",
+            "rooms": [],
             "stats": [
-                {"label": "Śr. temperatura", "value": f"{sum(s['temperature'] for s in sensors_data)/len(sensors_data):.1f}°C", "icon": "🌡️"},
-                {"label": "Zużycie energii", "value": f"{total_power} kW", "icon": "⚡"},
-                {"label": "Światła włączone", "value": sum(1 for s in sensors_data if s['light_on']), "icon": "💡"},
-                {"label": "Wykryty ruch", "value": sum(1 for s in sensors_data if s['motion']), "icon": "🚶"},
+                {"label": "Urządzenia", "value": 0, "icon": "🔌"},
+                {"label": "Czujniki", "value": 0, "icon": "🌡️"},
+                {"label": "Automatyzacje", "value": 0, "icon": "⚙️"},
+            ],
+            "quick_actions": [
+                {"cmd": "połącz home assistant", "label": "🏠 Home Assistant", "icon": "🏠"},
+                {"cmd": "połącz mqtt", "label": "📡 MQTT", "icon": "📡"},
+                {"cmd": "dodaj urządzenie", "label": "➕ Dodaj urządzenie", "icon": "➕"},
             ],
             "actions": [
-                {"id": "all_lights_off", "label": "Wyłącz światła", "icon": "🌙"},
-                {"id": "eco_mode", "label": "Tryb eco", "icon": "🌿"},
-                {"id": "schedule", "label": "Harmonogram", "icon": "📅"},
+                {"id": "connect_ha", "label": "Home Assistant", "icon": "🏠"},
+                {"id": "connect_mqtt", "label": "MQTT", "icon": "📡"},
             ]
         }
     
     @classmethod
     def _generate_analytics_view(cls, action: str, data: Any = None) -> Dict:
-        """Generate analytics dashboard"""
-        days = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz"]
-        weekly_data = [random.randint(50, 200) for _ in days]
-        
+        """Generate analytics dashboard - shows empty state without fake data"""
         return {
             "type": "analytics",
-            "view": "analytics_dashboard",
-            "title": "📈 Analityka i Raporty",
-            "subtitle": f"Ostatnie 7 dni | Suma: {sum(weekly_data)} zdarzeń",
-            "chart": {
-                "type": "line",
-                "labels": days,
-                "datasets": [{
-                    "label": "Aktywność",
-                    "data": weekly_data,
-                    "borderColor": "#3b82f6",
-                    "fill": True
-                }]
-            },
-            "metrics": [
-                {"name": "Konwersja", "value": f"{random.uniform(2, 8):.1f}%", "change": f"+{random.uniform(0.1, 1.5):.1f}%"},
-                {"name": "Czas sesji", "value": f"{random.randint(2, 8)}m {random.randint(0, 59)}s", "change": f"+{random.randint(5, 30)}s"},
-                {"name": "Bounce rate", "value": f"{random.uniform(20, 50):.1f}%", "change": f"-{random.uniform(1, 5):.1f}%"},
-            ],
+            "view": "empty_state",
+            "title": "📈 Analityka",
+            "subtitle": "Raporty i statystyki",
+            "empty_message": "Brak danych analitycznych",
+            "empty_instructions": "Połącz źródła danych (Google Analytics, baza danych) lub zaimportuj dane.",
             "stats": [
-                {"label": "Suma zdarzeń", "value": sum(weekly_data), "icon": "📊"},
-                {"label": "Średnia dzienna", "value": round(sum(weekly_data)/7), "icon": "📈"},
-                {"label": "Max", "value": max(weekly_data), "icon": "🔝"},
-                {"label": "Min", "value": min(weekly_data), "icon": "🔻"},
+                {"label": "Źródła danych", "value": 0, "icon": "📊"},
+                {"label": "Raporty", "value": 0, "icon": "📄"},
+                {"label": "Alerty", "value": 0, "icon": "🔔"},
+            ],
+            "quick_actions": [
+                {"cmd": "połącz analytics", "label": "📊 Google Analytics", "icon": "📊"},
+                {"cmd": "importuj dane", "label": "📥 Importuj dane", "icon": "📥"},
+                {"cmd": "utwórz raport", "label": "📄 Nowy raport", "icon": "📄"},
             ],
             "actions": [
-                {"id": "export_report", "label": "Eksportuj raport", "icon": "📄"},
-                {"id": "set_alerts", "label": "Ustaw alerty", "icon": "🔔"},
-                {"id": "compare", "label": "Porównaj okresy", "icon": "⚖️"},
+                {"id": "connect_ga", "label": "Google Analytics", "icon": "📊"},
+                {"id": "import_data", "label": "Importuj", "icon": "📥"},
             ]
         }
     
@@ -1527,6 +1486,49 @@ class ViewGenerator:
                 ]
             }
         
+        elif action == "exchange":
+            # Use real currency exchange from NBP API
+            from services.integrations.currency_exchange import currency_exchange
+            
+            result = await currency_exchange.get_rates()
+            rates = result.get("rates", {})
+            
+            # Get main currencies
+            main_currencies = ["USD", "EUR", "GBP", "CHF", "CZK"]
+            currency_data = []
+            for curr in main_currencies:
+                if curr in rates:
+                    rate = rates[curr]
+                    pln_rate = round(1 / rate, 4) if rate > 0 else 0
+                    currency_data.append({
+                        "code": curr,
+                        "rate": pln_rate,
+                        "display": f"1 {curr} = {pln_rate:.4f} PLN"
+                    })
+            
+            return {
+                "type": "internet",
+                "view": "exchange",
+                "title": "💱 Kursy walut",
+                "subtitle": f"Źródło: {result.get('source', 'NBP')} | Aktualizacja: {result.get('last_update', '')[:16] if result.get('last_update') else 'N/A'}",
+                "data": currency_data,
+                "all_rates": rates,
+                "stats": [
+                    {"label": "EUR/PLN", "value": f"{round(1/rates.get('EUR', 1), 2):.2f}" if rates.get('EUR') else "N/A", "icon": "💶"},
+                    {"label": "USD/PLN", "value": f"{round(1/rates.get('USD', 1), 2):.2f}" if rates.get('USD') else "N/A", "icon": "💵"},
+                    {"label": "GBP/PLN", "value": f"{round(1/rates.get('GBP', 1), 2):.2f}" if rates.get('GBP') else "N/A", "icon": "💷"},
+                    {"label": "CHF/PLN", "value": f"{round(1/rates.get('CHF', 1), 2):.2f}" if rates.get('CHF') else "N/A", "icon": "🇨🇭"},
+                ],
+                "quick_actions": [
+                    {"cmd": "kurs usd", "label": "💵 USD", "icon": "💵"},
+                    {"cmd": "kurs eur", "label": "💶 EUR", "icon": "💶"},
+                    {"cmd": "kurs gbp", "label": "💷 GBP", "icon": "💷"},
+                ],
+                "actions": [
+                    {"id": "refresh_exchange", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
         return cls._generate_internet_view(action, data)
     
     @classmethod
@@ -1608,6 +1610,267 @@ class ViewGenerator:
             return cls._generate_welcome_view()
         else:
             return cls._generate_welcome_view()
+    
+    @classmethod
+    def _generate_files_view(cls, action: str, data: Any = None) -> Dict:
+        """Generate File Manager dashboard view"""
+        from pathlib import Path
+        import os
+        
+        home = Path.home()
+        docs_path = home / "Documents"
+        downloads_path = home / "Downloads"
+        
+        # Get file stats
+        def get_dir_stats(path):
+            if not path.exists():
+                return {"count": 0, "size": 0}
+            files = list(path.glob("*"))
+            return {
+                "count": len(files),
+                "size": sum(f.stat().st_size for f in files if f.is_file())
+            }
+        
+        def format_size(size):
+            for unit in ["B", "KB", "MB", "GB"]:
+                if size < 1024:
+                    return f"{size:.1f} {unit}"
+                size /= 1024
+            return f"{size:.1f} TB"
+        
+        docs_stats = get_dir_stats(docs_path)
+        downloads_stats = get_dir_stats(downloads_path)
+        
+        # Get recent files
+        recent_files = []
+        for d in [docs_path, downloads_path]:
+            if d.exists():
+                for f in sorted(d.glob("*"), key=lambda x: x.stat().st_mtime if x.is_file() else 0, reverse=True)[:5]:
+                    if f.is_file():
+                        recent_files.append({
+                            "name": f.name,
+                            "path": str(f),
+                            "size": format_size(f.stat().st_size),
+                            "modified": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                        })
+        
+        recent_files = recent_files[:10]
+        
+        return {
+            "type": "files",
+            "view": "dashboard",
+            "title": "📁 File Manager",
+            "subtitle": f"Zarządzaj plikami w ~/Documents i ~/Downloads",
+            "stats": [
+                {"label": "Dokumenty", "value": docs_stats["count"], "icon": "📄", "detail": format_size(docs_stats["size"])},
+                {"label": "Pobrane", "value": downloads_stats["count"], "icon": "📥", "detail": format_size(downloads_stats["size"])},
+                {"label": "Ostatnie", "value": len(recent_files), "icon": "🕐"},
+            ],
+            "recent_files": recent_files,
+            "quick_actions": [
+                {"cmd": "moje dokumenty", "label": "📄 Dokumenty", "icon": "📁"},
+                {"cmd": "pobrane", "label": "📥 Pobrane", "icon": "📁"},
+                {"cmd": "ostatnie pliki", "label": "🕐 Ostatnie", "icon": "📋"},
+                {"cmd": "znajdź plik", "label": "🔍 Szukaj", "icon": "🔎"},
+            ],
+            "actions": [
+                {"id": "list_docs", "label": "📄 Dokumenty", "cmd": "moje dokumenty"},
+                {"id": "list_downloads", "label": "📥 Pobrane", "cmd": "pobrane"},
+                {"id": "recent", "label": "🕐 Ostatnie", "cmd": "ostatnie pliki"},
+                {"id": "search", "label": "🔍 Szukaj", "cmd": "znajdź plik"},
+            ]
+        }
+    
+    @classmethod
+    def _generate_cloud_storage_view(cls, action: str, data: Any = None) -> Dict:
+        """Generate Cloud Storage dashboard view with real connection status"""
+        from services.config.app_config_manager import app_config_manager
+        
+        # Get stored connections
+        connections = app_config_manager.get_connections("cloud_storage")
+        
+        # Provider definitions
+        providers_def = [
+            {"id": "onedrive", "name": "Microsoft OneDrive", "icon": "📘", "config_fields": ["client_id", "tenant_id"]},
+            {"id": "nextcloud", "name": "Nextcloud", "icon": "🔵", "config_fields": ["url", "username", "password"]},
+            {"id": "gdrive", "name": "Google Drive", "icon": "📗", "config_fields": ["client_id", "client_secret"]},
+        ]
+        
+        # Build providers with real status
+        providers = []
+        connected_count = 0
+        for p in providers_def:
+            conn = connections.get(p["id"])
+            is_connected = conn is not None and conn.get("status") == "connected"
+            if is_connected:
+                connected_count += 1
+            providers.append({
+                "id": p["id"],
+                "name": p["name"],
+                "icon": p["icon"],
+                "status": "connected" if is_connected else "disconnected",
+                "config_fields": p["config_fields"],
+                "last_sync": conn.get("last_sync") if conn else None
+            })
+        
+        # Handle specific actions
+        if action == "connect_onedrive":
+            return cls._generate_cloud_connect_form("onedrive", "Microsoft OneDrive", ["client_id", "tenant_id", "redirect_uri"])
+        elif action == "connect_nextcloud":
+            return cls._generate_cloud_connect_form("nextcloud", "Nextcloud", ["url", "username", "password"])
+        elif action == "connect_gdrive":
+            return cls._generate_cloud_connect_form("gdrive", "Google Drive", ["client_id", "client_secret"])
+        
+        return {
+            "type": "cloud_storage",
+            "view": "dashboard",
+            "title": "☁️ Cloud Storage",
+            "subtitle": f"{connected_count}/{len(providers)} usług połączonych",
+            "stats": [
+                {"label": "Połączone", "value": connected_count, "icon": "✅"},
+                {"label": "Dostępne", "value": len(providers), "icon": "☁️"},
+                {"label": "Pliki zsync.", "value": 0, "icon": "📄"},
+            ],
+            "providers": providers,
+            "quick_actions": [
+                {"cmd": "połącz onedrive", "label": "📘 OneDrive", "icon": "🔗"},
+                {"cmd": "połącz nextcloud", "label": "🔵 Nextcloud", "icon": "🔗"},
+                {"cmd": "połącz google drive", "label": "📗 Google Drive", "icon": "🔗"},
+                {"cmd": "status chmury", "label": "📊 Status", "icon": "📈"},
+            ],
+            "actions": [
+                {"id": "connect_onedrive", "label": "Połącz OneDrive", "cmd": "połącz onedrive"},
+                {"id": "connect_nextcloud", "label": "Połącz Nextcloud", "cmd": "połącz nextcloud"},
+                {"id": "connect_gdrive", "label": "Połącz Google Drive", "cmd": "połącz google drive"},
+                {"id": "status", "label": "Status", "cmd": "status chmury"},
+            ]
+        }
+    
+    @classmethod
+    def _generate_cloud_connect_form(cls, provider_id: str, provider_name: str, fields: List[str]) -> Dict:
+        """Generate connection form for cloud provider"""
+        field_labels = {
+            "client_id": "Client ID",
+            "client_secret": "Client Secret",
+            "tenant_id": "Tenant ID",
+            "redirect_uri": "Redirect URI",
+            "url": "Server URL",
+            "username": "Username",
+            "password": "Password",
+        }
+        
+        form_fields = [{"id": f, "label": field_labels.get(f, f), "type": "password" if "secret" in f or "password" in f else "text"} for f in fields]
+        
+        return {
+            "type": "cloud_storage",
+            "view": "connect_form",
+            "title": f"🔗 Połącz z {provider_name}",
+            "subtitle": "Wprowadź dane konfiguracyjne",
+            "provider_id": provider_id,
+            "provider_name": provider_name,
+            "form_fields": form_fields,
+            "instructions": f"Wprowadź dane dostępowe do {provider_name}. Dane zostaną bezpiecznie zapisane.",
+            "actions": [
+                {"id": "save_connection", "label": "💾 Zapisz", "cmd": f"zapisz {provider_id}"},
+                {"id": "cancel", "label": "❌ Anuluj", "cmd": "chmura"},
+            ]
+        }
+    
+    @classmethod
+    def _generate_registry_view(cls, action: str, data: Any = None) -> Dict:
+        """Generate Registry Manager view with real data"""
+        registries_list = registry_manager.get_all_registries()
+        external_apps = registry_manager.get_external_apps()
+        
+        # Format registries for display (handle both dict and object)
+        registry_data = []
+        for reg in registries_list:
+            if isinstance(reg, dict):
+                registry_data.append({
+                    "id": reg.get("id", "unknown"),
+                    "name": reg.get("name", "Unknown"),
+                    "type": reg.get("type", "unknown"),
+                    "url": reg.get("url", ""),
+                    "enabled": reg.get("enabled", False),
+                    "status": reg.get("status", "unknown"),
+                    "apps_count": len(reg.get("apps", [])),
+                    "last_sync": reg.get("last_sync")
+                })
+            else:
+                registry_data.append({
+                    "id": reg.id,
+                    "name": reg.name,
+                    "type": reg.type,
+                    "url": reg.url,
+                    "enabled": reg.enabled,
+                    "status": reg.status,
+                    "apps_count": len(reg.apps) if hasattr(reg, 'apps') else 0,
+                    "last_sync": reg.last_sync if hasattr(reg, 'last_sync') else None
+                })
+        
+        return {
+            "type": "registry",
+            "view": "dashboard",
+            "title": "📦 Registry Manager",
+            "subtitle": f"{len(registries_list)} rejestrów | {len(external_apps)} zewnętrznych aplikacji",
+            "registries": registry_data,
+            "stats": [
+                {"label": "Rejestry", "value": len(registries_list), "icon": "📦"},
+                {"label": "Aktywne", "value": sum(1 for r in registry_data if r.get("enabled")), "icon": "✅"},
+                {"label": "Zewnętrzne apps", "value": len(external_apps), "icon": "📱"},
+            ],
+            "quick_actions": [
+                {"cmd": "dodaj rejestr", "label": "➕ Dodaj rejestr", "icon": "➕"},
+                {"cmd": "synchronizuj rejestry", "label": "🔄 Synchronizuj", "icon": "🔄"},
+                {"cmd": "lista aplikacji", "label": "📋 Aplikacje", "icon": "📋"},
+            ],
+            "actions": [
+                {"id": "add_registry", "label": "Dodaj rejestr", "icon": "➕"},
+                {"id": "sync_all", "label": "Synchronizuj wszystkie", "icon": "🔄"},
+            ]
+        }
+    
+    @classmethod
+    def _generate_curllm_view(cls, action: str, data: Any = None) -> Dict:
+        """Generate CurlLM dashboard view"""
+        # Try to get LLM status
+        status = {"provider": "ollama", "model": "llama2", "available": False}
+        try:
+            import httpx
+            with httpx.Client(timeout=2) as client:
+                resp = client.get("http://localhost:11434/api/tags")
+                if resp.status_code == 200:
+                    models = resp.json().get("models", [])
+                    status["available"] = True
+                    status["models"] = [m["name"] for m in models[:5]]
+        except:
+            pass
+        
+        return {
+            "type": "curllm",
+            "view": "dashboard",
+            "title": "🤖 CurlLM - AI Assistant",
+            "subtitle": f"Provider: {status['provider']} | Model: {status['model']}",
+            "stats": [
+                {"label": "Provider", "value": status["provider"], "icon": "🔌"},
+                {"label": "Model", "value": status["model"], "icon": "🧠"},
+                {"label": "Status", "value": "Online" if status["available"] else "Offline", "icon": "✅" if status["available"] else "❌"},
+            ],
+            "models": status.get("models", []),
+            "quick_actions": [
+                {"cmd": "zapytaj llm", "label": "💬 Zapytaj", "icon": "🗣️"},
+                {"cmd": "modele", "label": "📋 Modele", "icon": "📋"},
+                {"cmd": "historia", "label": "📜 Historia", "icon": "📜"},
+                {"cmd": "status llm", "label": "📊 Status", "icon": "📊"},
+            ],
+            "actions": [
+                {"id": "query", "label": "💬 Zapytaj LLM", "cmd": "zapytaj llm"},
+                {"id": "models", "label": "📋 Lista modeli", "cmd": "modele"},
+                {"id": "translate", "label": "🌐 Przetłumacz", "cmd": "przetłumacz"},
+                {"id": "summarize", "label": "📝 Podsumuj", "cmd": "podsumuj"},
+                {"id": "code", "label": "💻 Generuj kod", "cmd": "kod"},
+            ]
+        }
     
     @classmethod
     def _generate_welcome_view(cls, user_permissions: List[str] = None) -> Dict:
@@ -2016,6 +2279,22 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 
                 # Update session with response
                 session_manager.update_session(client_id, intent["app_type"], command, response_text)
+                
+                # Update conversation context for LLM memory
+                context_manager.add_user_message(
+                    client_id, command,
+                    app_type=intent["app_type"],
+                    action=intent["action"]
+                )
+                context_manager.add_assistant_message(
+                    client_id, response_text,
+                    app_type=intent["app_type"],
+                    action=intent["action"]
+                )
+                context_manager.update_app_state(
+                    client_id, intent["app_type"],
+                    intent["action"], view_data
+                )
                 
                 # Send response
                 await manager.send_message(client_id, {

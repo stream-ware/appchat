@@ -1,5 +1,6 @@
 # Streamware Docker Compose Configuration
 # Compatible with Docker Compose and Podman Compose
+# Optimized for layer caching and fast rebuilds
 # Usage: docker-compose up -d OR podman-compose up -d
 
 version: '3.8'
@@ -13,6 +14,7 @@ volumes:
   redis_data:
   qdrant_data:
   app_data:
+  pip_cache:  # Persistent pip cache
 
 services:
   # ===== CORE SERVICES =====
@@ -21,6 +23,10 @@ services:
     build:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.backend
+      target: production  # Use production stage
+      cache_from:
+        - streamware-backend:latest
+    image: streamware-backend:latest
     container_name: streamware-backend
     restart: unless-stopped
     ports:
@@ -43,6 +49,25 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+  
+  # Development backend with hot reload
+  backend-dev:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.backend
+      target: development
+    container_name: streamware-backend-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - STREAMWARE_ENV=development
+    volumes:
+      - ../../:/app
+      - pip_cache:/root/.cache/pip
+    networks:
+      - streamware-net
+    profiles:
+      - dev
 
   # ===== LLM SERVICE =====
   

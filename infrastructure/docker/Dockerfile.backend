@@ -1,36 +1,65 @@
 # Streamware Backend Dockerfile
-FROM python:3.11-slim
+# Optimized for layer caching
+FROM python:3.11-slim AS base
 
 WORKDIR /app
 
-# Install system dependencies
+# ===== STAGE 1: System dependencies (rarely changes) =====
+FROM base AS system-deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     make \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Copy requirements first for better caching
+# ===== STAGE 2: Python dependencies (changes occasionally) =====
+FROM system-deps AS python-deps
+
+# Copy only requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY backend/ ./backend/
-COPY services/ ./services/
-COPY apps/ ./apps/
+# Use pip cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
+
+# ===== STAGE 3: Application code (changes frequently) =====
+FROM python-deps AS app
+
+# Copy static data files (less frequent changes)
 COPY data/ ./data/
+
+# Copy service layer
+COPY services/ ./services/
+
+# Copy apps (modular, may change)
+COPY apps/ ./apps/
+
+# Copy backend code (most frequent changes)
+COPY backend/ ./backend/
+
+# Copy frontend
 COPY frontend/ ./frontend/
+
+# ===== STAGE 4: Production image =====
+FROM app AS production
 
 # Create non-root user
 RUN useradd -m -u 1000 streamware && \
     chown -R streamware:streamware /app
+
 USER streamware
 
-# Expose port
 EXPOSE 8000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Run application
 CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# ===== STAGE 5: Development image =====
+FROM app AS development
+
+# Keep as root for development
+EXPOSE 8000
+
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
