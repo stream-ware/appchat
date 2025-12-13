@@ -1,0 +1,73 @@
+# Streamware MVP - Docker Compose Configuration
+# Voice-Controlled Dashboard Platform
+
+version: '3.8'
+
+services:
+  # Main Streamware application
+  streamware:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: streamware-mvp
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - streamware-net
+
+  # Development mode with hot reload
+  streamware-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: streamware-mvp-dev
+    ports:
+      - "8001:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+      - ./data:/app/data
+    command: ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - streamware-net
+
+  # Automated test runner
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: streamware-test
+    depends_on:
+      streamware:
+        condition: service_healthy
+    environment:
+      - STREAMWARE_URL=http://streamware:8000
+    volumes:
+      - ./scripts:/app/scripts
+    command: ["python", "/app/scripts/test_demo.py"]
+    profiles:
+      - test
+    networks:
+      - streamware-net
+
+networks:
+  streamware-net:
+    driver: bridge

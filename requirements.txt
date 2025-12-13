@@ -1,0 +1,17 @@
+# Streamware MVP - Python Dependencies
+
+# Web framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# WebSocket support
+websockets==12.0
+
+# Async support
+httpx==0.26.0
+
+# Data validation
+pydantic==2.5.3
+
+# Utilities
+python-multipart==0.0.6
