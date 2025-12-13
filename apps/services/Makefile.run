@@ -2,13 +2,17 @@
 # SYSTEM SERVICES - Makefile.run (System)
 # ============================================
 
-.PHONY: help health status install
+.PHONY: help health status test logs install
+
+APP_DIR := $(shell pwd)
 
 help:
 	@echo "🔧 System Services - System Commands"
 	@echo "====================================="
 	@echo "  health  - Check system health"
 	@echo "  status  - System status"
+	@echo "  test    - Run tests"
+	@echo "  logs    - Show logs"
 	@echo "  install - Install dependencies"
 
 health:
@@ -18,6 +22,14 @@ health:
 
 status:
 	@echo '{"app": "services", "status": "running"}'
+
+test:
+	@echo "🧪 Running services tests..."
+	@python3 tests/test_services.py
+
+logs:
+	@echo "=== Recent Logs ==="
+	@if [ -f $(APP_DIR)/logs/app.log ]; then tail -20 $(APP_DIR)/logs/app.log; else echo "No logs"; fi
 
 install:
 	@echo "No dependencies required"

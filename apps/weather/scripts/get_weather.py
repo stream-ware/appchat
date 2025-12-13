@@ -2,6 +2,7 @@
 """
 Weather App - Get Current Weather
 Streamware Modular App System
+Open geocoding system - accepts ANY city name via API
 """
 
 import os
@@ -13,38 +14,91 @@ from dotenv import load_dotenv
 
 # Load app .env
 APP_DIR = Path(__file__).parent.parent
+DATA_DIR = APP_DIR / "data"
 load_dotenv(APP_DIR / ".env")
 
-# Cities coordinates
-CITIES = {
-    "warsaw": {"lat": 52.2297, "lon": 21.0122, "name": "Warszawa"},
-    "warszawa": {"lat": 52.2297, "lon": 21.0122, "name": "Warszawa"},
-    "krakow": {"lat": 50.0647, "lon": 19.9450, "name": "Kraków"},
-    "kraków": {"lat": 50.0647, "lon": 19.9450, "name": "Kraków"},
-    "gdansk": {"lat": 54.3520, "lon": 18.6466, "name": "Gdańsk"},
-    "gdańsk": {"lat": 54.3520, "lon": 18.6466, "name": "Gdańsk"},
-    "wroclaw": {"lat": 51.1079, "lon": 17.0385, "name": "Wrocław"},
-    "wrocław": {"lat": 51.1079, "lon": 17.0385, "name": "Wrocław"},
-    "poznan": {"lat": 52.4064, "lon": 16.9252, "name": "Poznań"},
-    "poznań": {"lat": 52.4064, "lon": 16.9252, "name": "Poznań"},
-}
+# API endpoints
+GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search"
+WEATHER_API = "https://api.open-meteo.com/v1/forecast"
+
+def load_data():
+    """Load weather codes from JSON data file"""
+    data_file = DATA_DIR / "cities.json"
+    if data_file.exists():
+        with open(data_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"cities": {}, "weather_codes": {}, "defaults": {}}
+
+# Load data from external JSON
+_DATA = load_data()
+CITIES_CACHE = _DATA.get("cities", {})  # Used as cache only
+WEATHER_CODES = _DATA.get("weather_codes", {})
+DEFAULTS = _DATA.get("defaults", {})
+
+def geocode_city(city_name: str) -> dict:
+    """
+    Geocode any city name using Open-Meteo Geocoding API
+    Returns: {"lat": float, "lon": float, "name": str} or None
+    """
+    # First check cache for known cities
+    city_lower = city_name.lower().strip()
+    if city_lower in CITIES_CACHE:
+        cached = CITIES_CACHE[city_lower]
+        return {"lat": cached["lat"], "lon": cached["lon"], "name": cached["name"]}
+    
+    # Use geocoding API for unknown cities
+    try:
+        with httpx.Client(timeout=10) as client:
+            response = client.get(GEOCODING_API, params={
+                "name": city_name,
+                "count": 1,
+                "language": "pl",
+                "format": "json"
+            })
+            
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get("results", [])
+                
+                if results:
+                    loc = results[0]
+                    return {
+                        "lat": loc["latitude"],
+                        "lon": loc["longitude"],
+                        "name": loc.get("name", city_name),
+                        "country": loc.get("country_code", ""),
+                        "admin": loc.get("admin1", "")
+                    }
+    except Exception as e:
+        pass  # Fall through to default
+    
+    return None
 
 def get_weather(city: str = None) -> dict:
-    """Get current weather for city"""
+    """
+    Get current weather for ANY city using open geocoding
+    City name is passed directly to geocoding API - no hardcoded limits
+    """
     
     # Default city from env
     if not city:
         city = os.getenv("DEFAULT_CITY", "Warsaw")
     
-    city_lower = city.lower()
-    city_data = CITIES.get(city_lower, CITIES.get("warsaw"))
+    # Use geocoding API to resolve ANY city name
+    city_data = geocode_city(city)
     
-    api_url = os.getenv("WEATHER_API_URL", "https://api.open-meteo.com/v1/forecast")
+    if not city_data:
+        return {
+            "success": False,
+            "error": f"City not found: {city}",
+            "fallback": f"Nie znaleziono miasta: {city}"
+        }
+    
     timeout = int(os.getenv("WEATHER_TIMEOUT", "10"))
     
     try:
         with httpx.Client(timeout=timeout) as client:
-            response = client.get(api_url, params={
+            response = client.get(WEATHER_API, params={
                 "latitude": city_data["lat"],
                 "longitude": city_data["lon"],
                 "current_weather": True,
@@ -61,9 +115,13 @@ def get_weather(city: str = None) -> dict:
             data = response.json()
             current = data.get("current_weather", {})
             
-            return {
+            # Build response with geocoded city info
+            result = {
                 "success": True,
                 "city": city_data["name"],
+                "requested_city": city,  # Original request
+                "latitude": city_data["lat"],
+                "longitude": city_data["lon"],
                 "temperature": current.get("temperature"),
                 "windspeed": current.get("windspeed"),
                 "winddirection": current.get("winddirection"),
@@ -71,6 +129,14 @@ def get_weather(city: str = None) -> dict:
                 "time": current.get("time"),
                 "description": _weather_description(current.get("weathercode", 0))
             }
+            
+            # Add admin region if available
+            if city_data.get("admin"):
+                result["region"] = city_data["admin"]
+            if city_data.get("country"):
+                result["country"] = city_data["country"]
+            
+            return result
             
     except httpx.TimeoutException:
         return {
@@ -92,31 +158,8 @@ def get_weather(city: str = None) -> dict:
         }
 
 def _weather_description(code: int) -> str:
-    """Convert WMO weather code to description"""
-    codes = {
-        0: "Bezchmurnie",
-        1: "Przeważnie bezchmurnie",
-        2: "Częściowe zachmurzenie",
-        3: "Pochmurno",
-        45: "Mgła",
-        48: "Szadź",
-        51: "Lekka mżawka",
-        53: "Umiarkowana mżawka",
-        55: "Intensywna mżawka",
-        61: "Lekki deszcz",
-        63: "Umiarkowany deszcz",
-        65: "Intensywny deszcz",
-        71: "Lekki śnieg",
-        73: "Umiarkowany śnieg",
-        75: "Intensywny śnieg",
-        80: "Przelotne opady",
-        81: "Umiarkowane opady",
-        82: "Silne opady",
-        95: "Burza",
-        96: "Burza z gradem",
-        99: "Silna burza z gradem",
-    }
-    return codes.get(code, "Nieznane")
+    """Convert WMO weather code to description - loaded from data/cities.json"""
+    return WEATHER_CODES.get(str(code), "Nieznane")
 
 if __name__ == "__main__":
     city = sys.argv[1] if len(sys.argv) > 1 else None

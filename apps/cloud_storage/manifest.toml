@@ -1,0 +1,32 @@
+[app]
+id = "cloud_storage"
+name = "☁️ Cloud Storage"
+version = "1.0.0"
+description = "Integration with cloud storage services (OneDrive, Nextcloud, Google Drive)"
+author = "Streamware"
+enabled = true
+
+[permissions]
+requires = ["network", "filesystem"]
+role = "manager"
+
+[commands]
+"połącz onedrive" = "connect_onedrive"
+"połącz nextcloud" = "connect_nextcloud"
+"połącz google drive" = "connect_gdrive"
+"pokaż chmurę" = "list_cloud"
+"sync pliki" = "sync_files"
+"upload" = "upload_file"
+"download" = "download_file"
+"status chmury" = "cloud_status"
+
+[keywords]
+match = ["chmur", "cloud", "onedrive", "nextcloud", "google drive", "sync", "upload", "download"]
+
+[scripts]
+cloud_manager = "scripts/cloud_manager.py"
+sync = "scripts/sync.py"
+
+[ui]
+icon = "☁️"
+color = "#0078d4"

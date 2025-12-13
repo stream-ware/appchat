@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌤️ Weather App Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f172a; --card: #1e293b; --primary: #3b82f6;
+            --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --text: #e2e8f0; --muted: #94a3b8;
+        }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header h1 { font-size: 1.5rem; }
+        .role-tabs { display: flex; gap: 8px; }
+        .role-tab { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; }
+        .role-tab.active { background: var(--primary); color: white; }
+        .role-tab:not(.active) { background: var(--card); color: var(--muted); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+        .card { background: var(--card); border-radius: 12px; padding: 20px; }
+        .card h3 { font-size: 1rem; color: var(--muted); margin-bottom: 12px; }
+        .stat { font-size: 2rem; font-weight: bold; }
+        .stat-small { font-size: 0.9rem; color: var(--muted); }
+        .commands { display: flex; flex-direction: column; gap: 8px; }
+        .cmd-btn { padding: 12px; background: var(--bg); border: 1px solid var(--primary); border-radius: 8px; 
+                   color: var(--text); cursor: pointer; text-align: left; transition: all 0.2s; }
+        .cmd-btn:hover { background: var(--primary); }
+        .cmd-btn code { color: var(--primary); font-size: 0.8rem; }
+        .cmd-btn:hover code { color: white; }
+        .logs { background: #000; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; 
+                max-height: 200px; overflow-y: auto; color: #0f0; }
+        .status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .status.healthy { background: var(--success); }
+        .status.error { background: var(--danger); }
+        #weather-data { font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌤️ Weather App Dashboard</h1>
+        <div class="role-tabs">
+            <button class="role-tab active" onclick="showRole('user')">👤 User</button>
+            <button class="role-tab" onclick="showRole('admin')">⚙️ Admin</button>
+            <button class="role-tab" onclick="showRole('system')">🔧 System</button>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h3>📊 Current Weather</h3>
+            <div id="weather-data">Loading...</div>
+        </div>
+        
+        <div class="card">
+            <h3>🔧 Status</h3>
+            <div id="status">
+                <span class="status healthy">Healthy</span>
+            </div>
+            <p class="stat-small" style="margin-top: 8px;">API: Open-Meteo</p>
+        </div>
+        
+        <div class="card" id="commands-card">
+            <h3>⚡ Commands (User)</h3>
+            <div class="commands" id="commands">
+                <button class="cmd-btn" onclick="runCmd('pogoda')">
+                    🌤️ Pokaż pogodę<br><code>make -f Makefile.user pogoda</code>
+                </button>
+                <button class="cmd-btn" onclick="runCmd('city', 'Krakow')">
+                    📍 Pogoda Kraków<br><code>make -f Makefile.user city CITY=Krakow</code>
+                </button>
+                <button class="cmd-btn" onclick="runCmd('temp')">
+                    🌡️ Temperatura<br><code>make -f Makefile.user temp</code>
+                </button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>📜 Recent Logs</h3>
+            <div class="logs" id="logs">Loading logs...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/apps/weather';
+        
+        const COMMANDS = {
+            user: [
+                {name: '🌤️ Pokaż pogodę', cmd: 'make -f Makefile.user pogoda', action: 'pogoda'},
+                {name: '📍 Pogoda miasto', cmd: 'make -f Makefile.user city CITY=...', action: 'city'},
+                {name: '🌡️ Temperatura', cmd: 'make -f Makefile.user temp', action: 'temp'},
+            ],
+            admin: [
+                {name: '⚙️ Konfiguracja', cmd: 'make -f Makefile.admin config', action: 'config'},
+                {name: '✅ Włącz', cmd: 'make -f Makefile.admin enable', action: 'enable'},
+                {name: '❌ Wyłącz', cmd: 'make -f Makefile.admin disable', action: 'disable'},
+                {name: '💾 Backup', cmd: 'make -f Makefile.admin backup', action: 'backup'},
+            ],
+            system: [
+                {name: '🚀 Start', cmd: 'make -f Makefile.run start', action: 'start'},
+                {name: '🛑 Stop', cmd: 'make -f Makefile.run stop', action: 'stop'},
+                {name: '❤️ Health', cmd: 'make -f Makefile.run health', action: 'health'},
+                {name: '🧪 Test', cmd: 'make -f Makefile.run test', action: 'test'},
+                {name: '📜 Logs', cmd: 'make -f Makefile.run logs', action: 'logs'},
+            ]
+        };
+        
+        function showRole(role) {
+            document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const cmds = COMMANDS[role] || COMMANDS.user;
+            document.getElementById('commands-card').querySelector('h3').textContent = 
+                `⚡ Commands (${role.charAt(0).toUpperCase() + role.slice(1)})`;
+            
+            document.getElementById('commands').innerHTML = cmds.map(c => `
+                <button class="cmd-btn" onclick="runCmd('${c.action}')">
+                    ${c.name}<br><code>${c.cmd}</code>
+                </button>
+            `).join('');
+        }
+        
+        async function runCmd(action, param) {
+            try {
+                const res = await fetch(`${API_BASE}/make/user-${action}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(param ? {CITY: param} : {})
+                });
+                const data = await res.json();
+                alert(JSON.stringify(data, null, 2));
+                loadWeather();
+            } catch(e) {
+                alert('Error: ' + e.message);
+            }
+        }
+        
+        async function loadWeather() {
+            try {
+                const res = await fetch('/api/apps/weather/run/get_weather', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({args: ['Warsaw']})
+                });
+                const data = await res.json();
+                if (data.success && data.output) {
+                    const w = data.output;
+                    document.getElementById('weather-data').innerHTML = `
+                        <div class="stat">${w.temperature}°C</div>
+                        <p>${w.description} - ${w.city}</p>
+                        <p class="stat-small">Wiatr: ${w.windspeed} km/h</p>
+                    `;
+                }
+            } catch(e) {
+                document.getElementById('weather-data').textContent = 'Error loading';
+            }
+        }
+        
+        async function loadLogs() {
+            try {
+                const res = await fetch(`${API_BASE}/logs?lines=10`);
+                const data = await res.json();
+                document.getElementById('logs').textContent = 
+                    (data.logs || []).join('') || 'No logs yet';
+            } catch(e) {
+                document.getElementById('logs').textContent = 'Error loading logs';
+            }
+        }
+        
+        loadWeather();
+        loadLogs();
+        setInterval(loadWeather, 60000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# MONITORING - Makefile.run (System)
+.PHONY: help health status test logs install
+
+APP_NAME := monitoring
+APP_DIR := $(shell pwd)
+
+help:
+	@echo "📊 Monitoring - System Commands"
+	@echo "  health - Check health"
+	@echo "  test   - Run tests"
+	@echo "  logs   - Show logs"
+
+health:
+	@echo '{"status": "healthy", "app": "$(APP_NAME)"}'
+
+status:
+	@python3 scripts/system_info.py overview
+
+test:
+	@echo "🧪 Running $(APP_NAME) tests..."
+	@python3 tests/test_monitoring.py
+
+logs:
+	@echo "=== Recent Logs ==="
+	@if [ -f $(APP_DIR)/logs/app.log ]; then tail -20 $(APP_DIR)/logs/app.log; else echo "No logs"; fi
+
+install:
+	@echo "No dependencies required"

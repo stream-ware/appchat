@@ -38,6 +38,7 @@ from backend.makefile_converter import makefile_converter, MakefileConverter
 from backend.registry_manager import registry_manager, RegistryManager
 from backend.language_manager import language_manager, LanguageManager
 from backend.app_generator import app_generator, AppGenerator
+from backend.data_loader import data_loader, DataLoader
 try:
     import aiomqtt
     MQTT_AVAILABLE = True
@@ -602,130 +603,50 @@ user_manager = UserManager()
 # ============================================================================
 
 class SkillRegistry:
-    """Registry of all available skills/features with metadata"""
+    """Registry of all available skills/features with metadata
+    Data loaded from: data/apps_config.json
+    """
     
-    APPS = {
-        "documents": {
-            "name": "📄 Dokumenty",
-            "description": "Zarządzanie fakturami, umowami i skanami",
-            "icon": "📄",
-            "color": "#3b82f6",
-            "skills": [
-                {"cmd": "pokaż faktury", "name": "Pokaż faktury", "desc": "Wyświetl listę faktur"},
-                {"cmd": "zeskanuj fakturę", "name": "Skanuj", "desc": "Zeskanuj nowy dokument"},
-                {"cmd": "suma faktur", "name": "Suma", "desc": "Pokaż sumę faktur"},
-                {"cmd": "faktury do zapłaty", "name": "Do zapłaty", "desc": "Faktury oczekujące"},
-                {"cmd": "umowy", "name": "Umowy", "desc": "Lista umów"},
-                {"cmd": "przeterminowane", "name": "Przeterminowane", "desc": "Dokumenty po terminie"},
-                {"cmd": "eksportuj do excel", "name": "Eksport", "desc": "Eksportuj do Excel"},
-                {"cmd": "archiwum", "name": "Archiwum", "desc": "Dokumenty archiwalne"},
-            ]
-        },
-        "cameras": {
-            "name": "🎥 Monitoring",
-            "description": "Kamery CCTV i system bezpieczeństwa",
-            "icon": "🎥",
-            "color": "#ef4444",
-            "skills": [
-                {"cmd": "pokaż kamery", "name": "Kamery", "desc": "Podgląd wszystkich kamer"},
-                {"cmd": "gdzie ruch", "name": "Ruch", "desc": "Wykryty ruch"},
-                {"cmd": "alerty", "name": "Alerty", "desc": "Aktywne alerty"},
-                {"cmd": "nagraj", "name": "Nagrywanie", "desc": "Rozpocznij nagrywanie"},
-                {"cmd": "parking", "name": "Parking", "desc": "Kamery parkingu"},
-                {"cmd": "wejście", "name": "Wejście", "desc": "Kamera wejścia"},
-                {"cmd": "mapa ciepła", "name": "Mapa ciepła", "desc": "Heatmapa ruchu"},
-                {"cmd": "historia nagrań", "name": "Historia", "desc": "Archiwum nagrań"},
-            ]
-        },
-        "sales": {
-            "name": "📊 Sprzedaż",
-            "description": "Dashboard KPI i raporty sprzedażowe",
-            "icon": "📊",
-            "color": "#10b981",
-            "skills": [
-                {"cmd": "pokaż sprzedaż", "name": "Dashboard", "desc": "Dashboard sprzedaży"},
-                {"cmd": "raport", "name": "Raport", "desc": "Generuj raport"},
-                {"cmd": "porównaj regiony", "name": "Regiony", "desc": "Porównanie regionów"},
-                {"cmd": "top produkty", "name": "Top produkty", "desc": "Najlepsze produkty"},
-                {"cmd": "kpi", "name": "KPI", "desc": "Wskaźniki KPI"},
-                {"cmd": "prognoza", "name": "Prognoza", "desc": "Prognoza sprzedaży"},
-                {"cmd": "lejek sprzedaży", "name": "Lejek", "desc": "Sales funnel"},
-                {"cmd": "prowizje", "name": "Prowizje", "desc": "Prowizje sprzedaży"},
-            ]
-        },
-        "home": {
-            "name": "🏠 Smart Home",
-            "description": "Inteligentny dom i czujniki IoT",
-            "icon": "🏠",
-            "color": "#f59e0b",
-            "skills": [
-                {"cmd": "temperatura", "name": "Temperatura", "desc": "Odczyty temperatury"},
-                {"cmd": "oświetlenie", "name": "Światła", "desc": "Sterowanie oświetleniem"},
-                {"cmd": "energia", "name": "Energia", "desc": "Zużycie energii"},
-                {"cmd": "ogrzewanie", "name": "Ogrzewanie", "desc": "Sterowanie ogrzewaniem"},
-                {"cmd": "klimatyzacja", "name": "Klimatyzacja", "desc": "Sterowanie AC"},
-                {"cmd": "alarm", "name": "Alarm", "desc": "System alarmowy"},
-                {"cmd": "czujniki", "name": "Czujniki", "desc": "Status czujników"},
-                {"cmd": "harmonogram", "name": "Harmonogram", "desc": "Automatyzacje"},
-            ]
-        },
-        "analytics": {
-            "name": "📈 Analityka",
-            "description": "Raporty, wykresy i predykcje",
-            "icon": "📈",
-            "color": "#8b5cf6",
-            "skills": [
-                {"cmd": "analiza", "name": "Analiza", "desc": "Dashboard analityczny"},
-                {"cmd": "wykres", "name": "Wykresy", "desc": "Generuj wykres"},
-                {"cmd": "raport dzienny", "name": "Dzienny", "desc": "Raport dzienny"},
-                {"cmd": "raport tygodniowy", "name": "Tygodniowy", "desc": "Raport tygodniowy"},
-                {"cmd": "anomalie", "name": "Anomalie", "desc": "Wykryj anomalie"},
-                {"cmd": "predykcja", "name": "Predykcja", "desc": "Prognozowanie AI"},
-                {"cmd": "porównanie", "name": "Porównanie", "desc": "Porównaj okresy"},
-            ]
-        },
-        "internet": {
-            "name": "🌐 Internet",
-            "description": "Integracje z usługami zewnętrznymi",
-            "icon": "🌐",
-            "color": "#06b6d4",
-            "skills": [
-                {"cmd": "pogoda", "name": "Pogoda", "desc": "Aktualna pogoda"},
-                {"cmd": "bitcoin", "name": "Crypto", "desc": "Kursy kryptowalut"},
-                {"cmd": "kursy walut", "name": "Waluty", "desc": "Kursy walut"},
-                {"cmd": "rss", "name": "RSS", "desc": "Kanały RSS"},
-                {"cmd": "news", "name": "News", "desc": "Wiadomości"},
-                {"cmd": "email", "name": "Email", "desc": "Wyślij email"},
-                {"cmd": "mqtt", "name": "MQTT", "desc": "IoT messaging"},
-                {"cmd": "integracje", "name": "Status", "desc": "Status integracji"},
-            ]
-        },
-        "system": {
-            "name": "⚙️ System",
-            "description": "Ustawienia i pomoc",
-            "icon": "⚙️",
-            "color": "#6b7280",
-            "skills": [
-                {"cmd": "pomoc", "name": "Pomoc", "desc": "Lista komend"},
-                {"cmd": "status", "name": "Status", "desc": "Status systemu"},
-                {"cmd": "historia", "name": "Historia", "desc": "Historia konwersacji"},
-                {"cmd": "wyczyść", "name": "Wyczyść", "desc": "Wyczyść widok"},
-                {"cmd": "ustawienia", "name": "Ustawienia", "desc": "Konfiguracja"},
-            ]
-        }
-    }
+    @classmethod
+    def _get_apps_from_config(cls) -> Dict:
+        """Load apps from external JSON config"""
+        return data_loader.get_apps()
     
     @classmethod
     def get_all_apps(cls) -> Dict:
-        """Get all registered apps"""
-        return cls.APPS
+        """Get all registered apps including modular apps from registry"""
+        apps = dict(cls._get_apps_from_config())
+        
+        # Add modular apps from app_registry
+        for app_id, app in app_registry.apps.items():
+            if app_id not in apps:
+                # Build skills from manifest commands
+                skills = []
+                for cmd_text, cmd_info in app.commands.items():
+                    skills.append({
+                        "cmd": cmd_text,
+                        "name": cmd_text[:20],
+                        "desc": f"{app.name} command"
+                    })
+                
+                apps[app_id] = {
+                    "name": app.name,
+                    "description": app.description,
+                    "icon": app.ui.get("icon", "📦"),
+                    "color": app.ui.get("color", "#6366f1"),
+                    "skills": skills[:8],  # Limit to 8 skills
+                    "modular": True  # Mark as modular app
+                }
+        
+        return apps
     
     @classmethod
     def get_apps_for_user(cls, permissions: List[str]) -> Dict:
         """Get apps filtered by user permissions"""
+        all_apps = cls.get_all_apps()
         if "*" in permissions:
-            return cls.APPS
-        return {k: v for k, v in cls.APPS.items() if k in permissions}
+            return all_apps
+        return {k: v for k, v in all_apps.items() if k in permissions}
     
     @classmethod
     def get_app(cls, app_type: str) -> Optional[Dict]:
@@ -898,130 +819,89 @@ class DataSimulator:
 class VoiceCommandProcessor:
     """
     Processes voice commands and determines appropriate response/view
-    Supports 50+ use cases for office, home, and security applications
+    Data loaded from: data/apps_config.json
     """
     
-    # ========== 50+ USE CASES ==========
-    INTENTS = {
-        # === BIURO / OFFICE (15 cases) ===
-        "pokaż faktury": ("documents", "show_all"),
-        "zeskanuj fakturę": ("documents", "scan_new"),
-        "ile faktur": ("documents", "count"),
-        "faktury do zapłaty": ("documents", "filter_unpaid"),
-        "suma faktur": ("documents", "sum_total"),
-        "znajdź fakturę": ("documents", "search"),
-        "dokumenty": ("documents", "show_all"),
-        "faktury": ("documents", "show_all"),
-        "umowy": ("documents", "contracts"),
-        "przeterminowane": ("documents", "overdue"),
-        "eksportuj do excel": ("documents", "export_excel"),
-        "wyślij przypomnienie": ("documents", "send_reminder"),
-        "archiwum": ("documents", "archive"),
-        "ostatnie skany": ("documents", "recent_scans"),
-        "statystyki dokumentów": ("documents", "stats"),
-        
-        # === SPRZEDAŻ / SALES (12 cases) ===
-        "sprzedaż": ("sales", "show_dashboard"),
-        "pokaż sprzedaż": ("sales", "show_dashboard"),
-        "raport": ("sales", "show_report"),
-        "porównaj regiony": ("sales", "compare_regions"),
-        "top produkty": ("sales", "top_products"),
-        "trend": ("sales", "show_trend"),
-        "kpi": ("sales", "kpi_dashboard"),
-        "cele sprzedażowe": ("sales", "targets"),
-        "prowizje": ("sales", "commissions"),
-        "prognoza": ("sales", "forecast"),
-        "konwersja": ("sales", "conversion"),
-        "lejek sprzedaży": ("sales", "funnel"),
-        
-        # === MONITORING / SECURITY (15 cases) ===
-        "pokaż kamery": ("cameras", "show_grid"),
-        "monitoring": ("cameras", "show_grid"),
-        "kamera": ("cameras", "show_single"),
-        "gdzie ruch": ("cameras", "show_motion"),
-        "alerty": ("cameras", "show_alerts"),
-        "nagraj": ("cameras", "record"),
-        "ile osób": ("cameras", "count_people"),
-        "parking": ("cameras", "parking"),
-        "wejście": ("cameras", "entrance"),
-        "magazyn": ("cameras", "warehouse"),
-        "strefa zastrzeżona": ("cameras", "restricted"),
-        "nocny tryb": ("cameras", "night_mode"),
-        "wykryj twarz": ("cameras", "face_detection"),
-        "historia nagrań": ("cameras", "recordings"),
-        "mapa ciepła": ("cameras", "heatmap"),
-        
-        # === DOM / HOME (10 cases) ===
-        "temperatura": ("home", "temperature"),
-        "oświetlenie": ("home", "lighting"),
-        "energia": ("home", "energy"),
-        "zużycie prądu": ("home", "power_usage"),
-        "ogrzewanie": ("home", "heating"),
-        "klimatyzacja": ("home", "ac"),
-        "rolety": ("home", "blinds"),
-        "alarm": ("home", "alarm"),
-        "czujniki": ("home", "sensors"),
-        "harmonogram": ("home", "schedule"),
-        
-        # === ANALITYKA / ANALYTICS (8 cases) ===
-        "analiza": ("analytics", "overview"),
-        "wykres": ("analytics", "chart"),
-        "porównanie": ("analytics", "compare"),
-        "raport dzienny": ("analytics", "daily_report"),
-        "raport tygodniowy": ("analytics", "weekly_report"),
-        "raport miesięczny": ("analytics", "monthly_report"),
-        "anomalie": ("analytics", "anomalies"),
-        "predykcja": ("analytics", "prediction"),
-        
-        # === SYSTEM (10 cases) ===
-        "pomoc": ("system", "help"),
-        "wyczyść": ("system", "clear"),
-        "status": ("system", "status"),
-        "ustawienia": ("system", "settings"),
-        "historia": ("system", "history"),
-        "zaloguj": ("system", "login"),
-        "login": ("system", "login"),
-        "wyloguj": ("system", "logout"),
-        "logout": ("system", "logout"),
-        "kto": ("system", "whoami"),
-        "użytkownicy": ("system", "users"),
-        "start": ("system", "welcome"),
-        "aplikacje": ("system", "welcome"),
-        
-        # === INTERNET / INTEGRATIONS (20 cases) ===
-        "pogoda": ("internet", "weather"),
-        "weather": ("internet", "weather"),
-        "pogoda warszawa": ("internet", "weather_warsaw"),
-        "pogoda kraków": ("internet", "weather_krakow"),
-        "wiadomości": ("internet", "news"),
-        "news": ("internet", "news"),
-        "rss": ("internet", "rss"),
-        "kanały rss": ("internet", "rss"),
-        "bitcoin": ("internet", "crypto"),
-        "crypto": ("internet", "crypto"),
-        "kryptowaluty": ("internet", "crypto"),
-        "kursy walut": ("internet", "exchange"),
-        "exchange": ("internet", "exchange"),
-        "wyślij email": ("internet", "send_email"),
-        "email": ("internet", "send_email"),
-        "mqtt": ("internet", "mqtt"),
-        "iot": ("internet", "mqtt"),
-        "webhook": ("internet", "webhook"),
-        "api": ("internet", "api_status"),
-        "integracje": ("internet", "integrations"),
-        "http": ("internet", "http_test"),
+    _intents_cache = None
+    _keywords_cache = None
+    
+    @classmethod
+    def _get_intents(cls) -> Dict:
+        """Load intents from external JSON config"""
+        if cls._intents_cache is None:
+            cls._intents_cache = data_loader.get_intents()
+        return cls._intents_cache
+    
+    @classmethod
+    def _get_keywords(cls) -> Dict:
+        """Load keywords from external JSON config"""
+        if cls._keywords_cache is None:
+            cls._keywords_cache = data_loader.get_keywords()
+        return cls._keywords_cache
+    
+    # Parameter extraction patterns
+    PARAM_PATTERNS = {
+        "internet": {
+            "weather": {"param": "city", "keywords": ["pogoda", "weather"], "extract_after": True},
+        },
+        "services": {
+            "start": {"param": "name", "keywords": ["uruchom usługę", "start service"], "extract_after": True},
+            "stop": {"param": "name", "keywords": ["zatrzymaj usługę", "stop service"], "extract_after": True},
+            "restart": {"param": "name", "keywords": ["restartuj usługę", "restart service"], "extract_after": True},
+        },
+        "home": {
+            "temperature": {"param": "room", "keywords": ["temperatura"], "extract_after": True},
+        }
     }
     
-    # Keywords for fuzzy matching
-    KEYWORDS = {
-        "documents": ["faktur", "dokument", "skan", "umow", "pdf", "plik"],
-        "cameras": ["kamer", "monitor", "wideo", "obraz", "nagr", "cctv"],
-        "sales": ["sprzeda", "raport", "kpi", "wynik", "przychod", "zysk"],
-        "home": ["dom", "temp", "światł", "prąd", "ogrzew", "klima"],
-        "analytics": ["anali", "wykres", "statyst", "trend", "porówn"],
-        "security": ["alarm", "bezpiecz", "dostęp", "strefa", "intruz"],
-        "internet": ["pogod", "weather", "news", "rss", "bitcoin", "crypto", "kurs", "email", "mqtt", "webhook", "api", "http"],
-    }
+    @classmethod
+    def _extract_params(cls, command: str, app_type: str, action: str) -> Dict[str, str]:
+        """Extract parameters from command based on app/action patterns"""
+        params = {}
+        command_lower = command.lower().strip()
+        
+        # Get pattern for this app/action
+        app_patterns = cls.PARAM_PATTERNS.get(app_type, {})
+        action_pattern = app_patterns.get(action, {})
+        
+        if action_pattern and action_pattern.get("extract_after"):
+            param_name = action_pattern.get("param", "value")
+            keywords = action_pattern.get("keywords", [])
+            
+            for kw in keywords:
+                if kw in command_lower:
+                    # Extract text after the keyword
+                    idx = command_lower.find(kw)
+                    after_text = command[idx + len(kw):].strip()
+                    if after_text:
+                        params[param_name] = after_text
+                        break
+        
+        # Generic parameter extraction for weather (city names)
+        if app_type == "internet" and "weather" in action:
+            # Common Polish cities
+            cities = ["warszawa", "kraków", "krakow", "gdańsk", "gdansk", "wrocław", "wroclaw", 
+                     "poznań", "poznan", "łódź", "lodz", "katowice", "szczecin", "lublin",
+                     "wejherowo", "sopot", "gdynia", "zakopane", "toruń", "bydgoszcz"]
+            
+            words = command_lower.split()
+            for word in words:
+                # Check if word is a city (not a command keyword)
+                if word not in ["pogoda", "weather", "pokaż", "sprawdź", "jaka"]:
+                    if word in cities or len(word) > 3:
+                        # Likely a city name
+                        params["city"] = command.split()[-1] if len(words) > 1 else None
+                        break
+            
+            # If still no city, check for text after "pogoda" or "weather"
+            for kw in ["pogoda ", "weather "]:
+                if kw in command_lower:
+                    after = command_lower.split(kw)[-1].strip()
+                    if after and after not in ["w", "dla", "in", "for"]:
+                        params["city"] = after.split()[0].capitalize()
+                        break
+        
+        return params
     
     @classmethod
     def process(cls, command: str) -> Dict[str, Any]:
@@ -1030,26 +910,37 @@ class VoiceCommandProcessor:
         logger.info(f"📝 Processing command: '{command}'")
         
         # Find matching intent
-        for pattern, (app_type, action) in cls.INTENTS.items():
+        for pattern, (app_type, action) in cls._get_intents().items():
             if pattern in command_lower:
-                logger.info(f"✅ Matched intent: {app_type}/{action} (pattern: '{pattern}')")
+                # Extract parameters from command
+                params = cls._extract_params(command, app_type, action)
+                
+                logger.info(f"✅ Matched intent: {app_type}/{action} (pattern: '{pattern}'), params: {params}")
                 return {
                     "recognized": True,
                     "app_type": app_type,
                     "action": action,
                     "original_command": command,
+                    "params": params,
                     "confidence": random.uniform(0.85, 0.99)
                 }
         
         # Fuzzy matching using keywords
-        for app_type, keywords in cls.KEYWORDS.items():
+        for app_type, keywords in cls._get_keywords().items():
             if any(word in command_lower for word in keywords):
-                logger.info(f"🔍 Fuzzy match: {app_type} (keyword match)")
+                action = "show_all"
+                # For weather, detect city in fuzzy match too
+                if app_type == "internet" and any(w in command_lower for w in ["pogod", "weather"]):
+                    action = "weather"
+                
+                params = cls._extract_params(command, app_type, action)
+                logger.info(f"🔍 Fuzzy match: {app_type}/{action}, params: {params}")
                 return {
                     "recognized": True, 
                     "app_type": app_type, 
-                    "action": "show_all",
-                    "original_command": command, 
+                    "action": action,
+                    "original_command": command,
+                    "params": params,
                     "confidence": 0.7
                 }
         
@@ -1059,6 +950,7 @@ class VoiceCommandProcessor:
             "app_type": "system",
             "action": "unknown",
             "original_command": command,
+            "params": {},
             "confidence": 0.0
         }
 
@@ -1088,14 +980,59 @@ class ViewGenerator:
             return cls._generate_internet_view(action, data)
         elif app_type == "system":
             return cls._generate_system_view(action)
+        elif app_type in ["services", "monitoring", "backup", "registry", "notifications"]:
+            return cls._generate_modular_app_view(app_type, action, data)
         else:
             return cls._generate_empty_view()
     
     @classmethod
-    async def generate_async(cls, app_type: str, action: str, data: Any = None) -> Dict[str, Any]:
+    def _generate_modular_app_view(cls, app_type: str, action: str, data: Any = None) -> Dict:
+        """Generate view for modular apps using app_registry"""
+        app = app_registry.get_app(app_type)
+        if not app:
+            return cls._generate_empty_view()
+        
+        # Map action to makefile target
+        target_map = {
+            "list": "list", "overview": "overview", "systemd": "systemd",
+            "docker": "docker", "cpu": "cpu", "memory": "memory",
+            "disk": "disk", "processes": "processes", "create": "create",
+            "start": "start", "stop": "stop", "restart": "restart"
+        }
+        target = target_map.get(action, action)
+        
+        # Try to execute via Makefile
+        result = app_registry.run_make(app_type, f"user-{target}")
+        
+        output = result.get("output", {})
+        if isinstance(output, str):
+            try:
+                import json
+                output = json.loads(output)
+            except:
+                output = {"raw": output}
+        
+        return {
+            "type": app_type,
+            "view": "data",
+            "title": f"{app.name}",
+            "subtitle": f"Action: {action}",
+            "data": output,
+            "stats": [
+                {"label": "App", "value": app_type, "icon": app.ui.get("icon", "📦")},
+                {"label": "Status", "value": "OK" if result.get("success") else "Error", "icon": "✅" if result.get("success") else "❌"},
+            ],
+            "actions": [
+                {"id": f"refresh_{app_type}", "label": "Odśwież", "icon": "🔄"},
+            ]
+        }
+    
+    @classmethod
+    async def generate_async(cls, app_type: str, action: str, data: Any = None, params: Dict = None) -> Dict[str, Any]:
         """Async version for internet integrations that need API calls"""
+        params = params or {}
         if app_type == "internet":
-            return await cls._generate_internet_view_async(action, data)
+            return await cls._generate_internet_view_async(action, data, params)
         return cls.generate(app_type, action, data)
     
     @classmethod
@@ -1479,11 +1416,17 @@ class ViewGenerator:
             }
     
     @classmethod
-    async def _generate_internet_view_async(cls, action: str, data: Any = None) -> Dict:
+    async def _generate_internet_view_async(cls, action: str, data: Any = None, params: Dict = None) -> Dict:
         """Generate internet view with real API data - uses modular apps"""
+        params = params or {}
         
         if action in ["weather", "weather_warsaw", "weather_krakow"]:
-            city = "Kraków" if "krakow" in action else "Warszawa"
+            # Use city from params if provided, otherwise default based on action
+            city = params.get("city")
+            if not city:
+                city = "Kraków" if "krakow" in action else "Warszawa"
+            
+            logger.info(f"🌤️ Weather request for city: {city}")
             
             # Use modular weather app instead of hardcoded integrations
             result = app_registry.run_script("weather", "get_weather", city)
@@ -2054,11 +1997,19 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     })
                     continue
                 
-                # Generate view
-                view_data = ViewGenerator.generate(
-                    intent["app_type"],
-                    intent["action"]
-                )
+                # Generate view (use async for internet/weather to fetch real data)
+                params = intent.get("params", {})
+                if intent["app_type"] == "internet":
+                    view_data = await ViewGenerator.generate_async(
+                        intent["app_type"],
+                        intent["action"],
+                        params=params
+                    )
+                else:
+                    view_data = ViewGenerator.generate(
+                        intent["app_type"],
+                        intent["action"]
+                    )
                 
                 # Generate response
                 response_text = ResponseGenerator.generate(intent, view_data)
@@ -2084,7 +2035,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 if cmd:
                     # Execute the command directly
                     intent = VoiceCommandProcessor.process(cmd)
-                    view_data = ViewGenerator.generate(intent["app_type"], intent["action"])
+                    params = intent.get("params", {})
+                    if intent["app_type"] == "internet":
+                        view_data = await ViewGenerator.generate_async(intent["app_type"], intent["action"], params=params)
+                    else:
+                        view_data = ViewGenerator.generate(intent["app_type"], intent["action"])
                     response_text = ResponseGenerator.generate(intent, view_data)
                     
                     await manager.send_message(client_id, {
@@ -2164,16 +2119,17 @@ async def export_conversation(session_id: str):
 @app.get("/api/commands")
 async def list_commands():
     """List all available commands (85+)"""
+    intents = VoiceCommandProcessor._get_intents()
     return {
-        "total_commands": len(VoiceCommandProcessor.INTENTS),
+        "total_commands": len(intents),
         "categories": {
-            "office": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "documents"],
-            "security": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "cameras"],
-            "sales": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "sales"],
-            "home": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "home"],
-            "analytics": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "analytics"],
-            "internet": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "internet"],
-            "system": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "system"],
+            "office": [k for k, v in intents.items() if v[0] == "documents"],
+            "security": [k for k, v in intents.items() if v[0] == "cameras"],
+            "sales": [k for k, v in intents.items() if v[0] == "sales"],
+            "home": [k for k, v in intents.items() if v[0] == "home"],
+            "analytics": [k for k, v in intents.items() if v[0] == "analytics"],
+            "internet": [k for k, v in intents.items() if v[0] == "internet"],
+            "system": [k for k, v in intents.items() if v[0] == "system"],
         }
     }
 
@@ -3095,7 +3051,7 @@ async def generate_makefiles_for_repo(data: Dict):
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 logger.info("✅ All API endpoints registered")
-logger.info(f"📊 Available commands: {len(VoiceCommandProcessor.INTENTS)}")
+logger.info(f"📊 Available commands: {len(VoiceCommandProcessor._get_intents())}")
 logger.info("🌐 Internet integration endpoints ready")
 logger.info("🤖 LLM management endpoints ready")
 logger.info("⚙️ Configuration endpoints ready")
