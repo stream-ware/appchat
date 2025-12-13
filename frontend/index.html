@@ -1783,7 +1783,7 @@ Przykładowe komendy:
             if (view.actions) {
                 view.actions.forEach(action => {
                     const btn = document.createElement('button');
-                    btn.innerHTML = `${action.icon} ${action.label}`;
+                    btn.innerHTML = `${action.icon || ''} ${action.label || action.id}`.trim();
                     btn.onclick = () => handleAction(action.id, view.type);
                     actionsEl.appendChild(btn);
                 });
@@ -1818,6 +1818,8 @@ Przykładowe komendy:
                 contentEl.innerHTML = renderCurllmView(view);
             } else if (view.type === 'registry') {
                 contentEl.innerHTML = renderRegistryView(view);
+            } else if (view.type === 'diagnostics') {
+                contentEl.innerHTML = renderDiagnosticsView(view);
             } else if (view.view === 'empty_state') {
                 contentEl.innerHTML = renderEmptyStateView(view);
             } else if (view.type === 'empty') {
@@ -2015,7 +2017,87 @@ Przykładowe komendy:
                         ...data
                     }
                 }));
-                addChatMessage('bot', `Zapisuję połączenie z ${providerId}...`);
+                addChatMessage(`Zapisuję połączenie z ${providerId}...`, 'assistant');
+            }
+        }
+        
+        function renderDiagnosticsView(view) {
+            let html = '<div class="diagnostics-dashboard">';
+            
+            // Health score header
+            const score = view.summary?.health_score || 0;
+            const scoreColor = score > 70 ? '#10b981' : score > 40 ? '#f59e0b' : '#ef4444';
+            html += `
+                <div class="health-score-header" style="text-align: center; margin-bottom: 20px;">
+                    <div class="health-score-circle" style="width: 100px; height: 100px; border-radius: 50%; background: ${scoreColor}; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
+                        ${score}%
+                    </div>
+                    <div style="margin-top: 10px; color: var(--text-secondary);">Health Score</div>
+                </div>
+            `;
+            
+            // Stats
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-value">${stat.value}</div>
+                            <div class="stat-label">${stat.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Apps list
+            if (view.apps && view.apps.length > 0) {
+                html += '<div class="diagnostics-apps"><h3>📋 Status aplikacji</h3>';
+                view.apps.forEach(app => {
+                    const statusClass = app.status === 'functional' ? 'success' : app.status === 'error' ? 'error' : 'warning';
+                    html += `
+                        <div class="diagnostic-app-card ${statusClass}" style="margin-bottom: 10px; padding: 12px; background: var(--bg-card); border-radius: 8px; border-left: 4px solid ${app.status === 'functional' ? '#10b981' : app.status === 'error' ? '#ef4444' : '#f59e0b'};">
+                            <div class="app-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: bold;">${app.status_icon} ${app.name}</span>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">${app.functional}/${app.functional + app.placeholder + app.errors} features</span>
+                            </div>
+                            <div class="app-features" style="margin-top: 8px; font-size: 0.85rem;">
+                    `;
+                    
+                    // Show features
+                    (app.features || []).forEach(f => {
+                        const fIcon = f.status === 'functional' ? '✅' : f.status === 'error' ? '❌' : '⚠️';
+                        html += `<div style="padding: 4px 0; color: var(--text-secondary);">${fIcon} ${f.name}: <span style="opacity: 0.8;">${(f.description || '').substring(0, 50)}${f.description?.length > 50 ? '...' : ''}</span></div>`;
+                    });
+                    
+                    html += '</div></div>';
+                });
+                html += '</div>';
+            }
+            
+            // Quick actions
+            if (view.quick_actions) {
+                html += '<div class="quick-actions-grid" style="margin-top: 20px;">';
+                view.quick_actions.forEach(action => {
+                    html += `<button class="quick-action-btn" onclick="runDiagnostics()">${action.icon || ''} ${action.label}</button>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        async function runDiagnostics() {
+            addChatMessage('🏥 Uruchamiam diagnostykę systemu...', 'assistant');
+            try {
+                const response = await fetch('/api/diagnostics');
+                const data = await response.json();
+                addChatMessage(`✅ Diagnostyka zakończona: Health Score ${data.summary.health_score}%`, 'assistant');
+                sendCommand('diagnostyka');
+            } catch(e) {
+                addChatMessage('❌ Błąd diagnostyki: ' + e.message, 'assistant');
             }
         }
         

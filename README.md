@@ -9,10 +9,12 @@
 - [Opis](#-opis)
 - [Architektura](#-architektura)
 - [Quick Start](#-quick-start)
+- [Modular Apps](#-modular-apps)
 - [Funkcjonalności](#-funkcjonalności)
 - [API Reference](#-api-reference)
 - [Komendy głosowe](#-komendy-głosowe)
 - [Development](#-development)
+- [Dokumentacja](#-dokumentacja)
 
 ---
 
@@ -41,10 +43,10 @@ Streamware MVP to proof-of-concept głosowej platformy do sterowania dashboardam
 ## 🏗️ Architektura
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────────────────────┐
 │                         BROWSER (Client)                            │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │               80% APP VIEW               │  20% CHAT        │   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │               80% APP VIEW              │  20% CHAT        │   │
 │  │  ┌─────────────────────────────────┐    │  ┌─────────────┐ │   │
 │  │  │  Dynamic Content:               │    │  │ Voice Input │ │   │
 │  │  │  • Tables (documents)           │    │  │ Chat Msgs   │ │   │
@@ -468,15 +470,99 @@ python scripts/test_demo.py
 
 ---
 
+---
+
+## 📦 Modular Apps
+
+System modułowych aplikacji w `apps/`:
+
+| App | Opis | Komendy |
+|-----|------|---------|
+| 🌤️ **weather** | Pogoda Open-Meteo | `pogoda`, `temperatura` |
+| 📄 **documents** | Dokumenty, faktury | `faktury`, `skanuj` |
+| 📦 **registry** | Zarządzanie rejestrami | `rejestry`, `dodaj rejestr` |
+| 🔧 **services** | Usługi systemowe | `usługi`, `docker` |
+
+### 3-Level Makefile System
+
+```
+apps/myapp/
+├── Makefile        # Entry point
+├── Makefile.run    # System/DevOps (start, stop, health)
+├── Makefile.user   # User commands (daily use)
+└── Makefile.admin  # Admin (config, enable, disable)
+```
+
+### text2makefile
+
+Konwersja tekst ↔ Makefile:
+```
+"pokaż pogodę"  →  make -f Makefile.user pogoda
+"ustaw timeout 30"  →  make -f Makefile.admin set-timeout SEC=30
+```
+
+→ Więcej: [docs/APPS.md](docs/APPS.md)
+
+---
+
+## 🌐 Multi-language Support
+
+**7 języków z runtime switching:**
+- 🇵🇱 Polski | 🇬🇧 English | 🇩🇪 Deutsch
+- 🇫🇷 Français | 🇪🇸 Español | 🇺🇦 Українська | 🇷🇺 Русский
+
+Zmiana języka w runtime:
+```bash
+curl -X POST http://localhost:8002/api/language \
+  -d '{"language": "en", "session_id": "..."}'
+```
+
+---
+
+## 🏭 App Generator
+
+Generuj aplikacje z:
+- **npm/pypi/docker** - pakiety z rejestrów
+- **API docs URL** - automatyczna analiza przez LLM
+- **Git repos** - generowanie Makefiles
+
+```bash
+# Z pakietu
+curl -X POST http://localhost:8002/api/generator/from-package \
+  -d '{"registry": "docker", "package": "nginx"}'
+
+# Z API docs
+curl -X POST http://localhost:8002/api/generator/from-api-docs \
+  -d '{"url": "https://api.example.com/docs"}'
+```
+
+→ Więcej: [docs/API.md](docs/API.md)
+
+---
+
+## 📚 Dokumentacja
+
+| Dokument | Opis |
+|----------|------|
+| [docs/API.md](docs/API.md) | API Reference (~150 endpoints) |
+| [docs/APPS.md](docs/APPS.md) | Tworzenie modułowych aplikacji |
+| [docs/ARCHITECTURE_PLAN.md](docs/ARCHITECTURE_PLAN.md) | Plan architektury |
+| [docs/REFACTORING_PLAN.md](docs/REFACTORING_PLAN.md) | Plan refaktoryzacji |
+| [docs/PROJECT_ANALYSIS.md](docs/PROJECT_ANALYSIS.md) | Analiza projektu |
+
+---
+
 ## 🚀 Next Steps (Roadmap)
 
-- [ ] **Real STT/TTS** - Integrate Whisper + Coqui TTS
+- [x] **Modular Apps** - apps/ folder z manifest.toml
+- [x] **text2makefile** - Universal command format
+- [x] **Multi-language** - 7 języków, runtime switching
+- [x] **App Generator** - npm/pypi/docker/API docs
+- [x] **System Services** - zarządzanie usługami
+- [ ] **Real STT/TTS** - Whisper + Coqui TTS
 - [ ] **Real Video** - RTSP camera streams
-- [ ] **Real Data** - PostgreSQL + file storage
-- [ ] **LLM Integration** - GPT/Claude for natural language
-- [ ] **Skills System** - Pluggable modules
-- [ ] **Authentication** - User management
-- [ ] **Multi-tenant** - Team workspaces
+- [ ] **Authentication** - JWT + RBAC
+- [ ] **Tests** - 70%+ coverage
 
 ---
 

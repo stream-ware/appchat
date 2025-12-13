@@ -1,0 +1,59 @@
+{
+  "timestamp": "2025-12-13T16:55:47.270008",
+  "success": true,
+  "total": 7,
+  "passed": 7,
+  "failed": 0,
+  "duration": 0.25342416763305664,
+  "results": [
+    {
+      "name": "api_health",
+      "passed": true,
+      "duration": 0.10731315612792969,
+      "message": "Status: healthy",
+      "error": ""
+    },
+    {
+      "name": "api_apps",
+      "passed": true,
+      "duration": 0.033231258392333984,
+      "message": "Found 10 apps",
+      "error": ""
+    },
+    {
+      "name": "api_commands",
+      "passed": true,
+      "duration": 0.03368997573852539,
+      "message": "Found 146 commands",
+      "error": ""
+    },
+    {
+      "name": "websocket_connection",
+      "passed": true,
+      "duration": 0.01726818084716797,
+      "message": "WebSocket connected, welcome received",
+      "error": ""
+    },
+    {
+      "name": "websocket_command",
+      "passed": true,
+      "duration": 0.0035648345947265625,
+      "message": "Command processed: system",
+      "error": ""
+    },
+    {
+      "name": "frontend_loads",
+      "passed": true,
+      "duration": 0.029579639434814453,
+      "message": "HTML loaded (122662 bytes)",
+      "error": ""
+    },
+    {
+      "name": "frontend_elements",
+      "passed": true,
+      "duration": 0.02633380889892578,
+      "message": "Found 7/7 elements",
+      "error": ""
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "mock_doc_20251213_165100",
+  "filename": "sample_invoice_5.pdf",
+  "vendor": "XYZ Services Ltd",
+  "nip": "9876543210",
+  "invoice_number": "FV/5162/2024",
+  "date": "2025-12-06",
+  "due_date": "2025-12-16",
+  "amount_net": 1127.05,
+  "amount_vat": 259.22,
+  "amount_gross": 1386.27,
+  "currency": "PLN",
+  "payment_method": "transfer",
+  "bank_account": "98 7654 3210 9876 5432 1098 7654",
+  "status": "pending",
+  "confidence": 0.8956132737846838,
+  "processed_at": "2025-12-13T16:51:00.664319",
+  "raw_text": "FAKTURA VAT NR FV/5162/2024\nSprzedawca: XYZ Services Ltd\nNIP: 9876543210\nKwota: 1386.27 PLN",
+  "mock": true
+}

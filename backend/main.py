@@ -993,6 +993,8 @@ class ViewGenerator:
             return cls._generate_curllm_view(action, data)
         elif app_type == "registry":
             return cls._generate_registry_view(action, data)
+        elif app_type == "diagnostics":
+            return cls._generate_diagnostics_view(action, data)
         elif app_type in ["services", "monitoring", "backup", "notifications"]:
             return cls._generate_modular_app_view(app_type, action, data)
         else:
@@ -1050,15 +1052,70 @@ class ViewGenerator:
     
     @classmethod
     def _generate_documents_view(cls, action: str, data: List[Document] = None) -> Dict:
-        """Generate documents view - shows real data or empty state"""
-        # No simulated data - show empty state with instructions
+        """Generate documents dashboard view with real OCR data"""
+        try:
+            from apps.documents.ocr_processor import get_documents_list
+            documents = get_documents_list()
+        except:
+            # Fallback to mock OCR if real OCR not available
+            try:
+                from apps.documents.mock_ocr import get_documents_list_mock
+                documents = get_documents_list_mock()
+            except:
+                documents = []
+        
+        # Calculate stats
+        total_docs = len(documents)
+        total_amount = sum(doc.get('amount_gross', 0) for doc in documents)
+        pending_payment = sum(doc.get('amount_gross', 0) for doc in documents if doc.get('status') == 'pending')
+        
+        # Format data for display
+        formatted_docs = []
+        for doc in documents:
+            formatted_docs.append({
+                "id": doc.get('id', ''),
+                "filename": doc.get('filename', ''),
+                "vendor": doc.get('vendor', 'Nieznany'),
+                "nip": doc.get('nip', ''),
+                "invoice_number": doc.get('invoice_number', ''),
+                "date": doc.get('date', ''),
+                "due_date": doc.get('due_date', ''),
+                "amount_gross": doc.get('amount_gross', 0),
+                "currency": doc.get('currency', 'PLN'),
+                "status": doc.get('status', 'unknown'),
+                "confidence": doc.get('confidence', 0)
+            })
+        
+        if not formatted_docs:
+            # Empty state with OCR instructions
+            return {
+                "type": "documents",
+                "view": "empty_state",
+                "title": "📄 Dokumenty",
+                "subtitle": "System zarządzania dokumentami z OCR",
+                "empty_message": "Brak dokumentów w systemie",
+                "empty_instructions": "Użyj komendy 'zeskanuj fakturę' aby przetworzyć dokument za pomocą OCR lub 'importuj dokument' aby dodać plik.",
+                "stats": [
+                    {"label": "Dokumentów", "value": 0, "icon": "📄"},
+                    {"label": "Suma brutto", "value": "0 PLN", "icon": "💰"},
+                    {"label": "Do zapłaty", "value": 0, "icon": "⏰"}
+                ],
+                "quick_actions": [
+                    {"cmd": "zeskanuj fakturę", "label": "📷 Skanuj dokument", "icon": "📷"},
+                    {"cmd": "importuj dokument", "label": "📥 Importuj plik", "icon": "📥"}
+                ],
+                "actions": [
+                    {"id": "scan", "label": "Skanuj nową", "icon": "📷"},
+                    {"id": "import", "label": "Importuj", "icon": "📥"}
+                ]
+            }
+        
+        # Real data view
         return {
             "type": "documents",
-            "view": "empty_state",
+            "view": "dashboard",
             "title": "📄 Dokumenty",
-            "subtitle": "System zarządzania dokumentami i fakturami",
-            "empty_message": "Brak dokumentów w systemie",
-            "empty_instructions": "Użyj komendy 'zeskanuj fakturę' aby dodać nowy dokument lub połącz się z zewnętrznym systemem księgowym.",
+            "subtitle": f"{total_docs} dokumentów | OCR: {'✅' if total_docs > 0 else '⚠️'}",
             "columns": [
                 {"key": "filename", "label": "Plik", "width": "15%"},
                 {"key": "vendor", "label": "Dostawca", "width": "20%"},
@@ -1066,48 +1123,114 @@ class ViewGenerator:
                 {"key": "amount_gross", "label": "Kwota brutto", "width": "12%", "format": "currency"},
                 {"key": "date", "label": "Data", "width": "10%"},
                 {"key": "due_date", "label": "Termin", "width": "10%"},
-                {"key": "status", "label": "Status", "width": "10%", "format": "badge"},
+                {"key": "status", "label": "Status", "width": "10%", "format": "badge"}
             ],
-            "data": [],
+            "data": formatted_docs,
             "stats": [
-                {"label": "Dokumentów", "value": 0, "icon": "📄"},
-                {"label": "Suma brutto", "value": "0 PLN", "icon": "💰"},
-                {"label": "Do zapłaty", "value": 0, "icon": "⏰"},
+                {"label": "Dokumentów", "value": total_docs, "icon": "📄"},
+                {"label": "Suma brutto", "value": f"{total_amount:.2f} PLN", "icon": "💰"},
+                {"label": "Do zapłaty", "value": f"{pending_payment:.2f} PLN", "icon": "⏰"}
             ],
             "quick_actions": [
                 {"cmd": "zeskanuj fakturę", "label": "📷 Skanuj dokument", "icon": "📷"},
-                {"cmd": "połącz księgowość", "label": "🔗 Połącz z systemem", "icon": "🔗"},
+                {"cmd": "importuj dokument", "label": "📥 Importuj plik", "icon": "📥"},
+                {"cmd": "eksportuj do excel", "label": "📊 Eksportuj", "icon": "📊"}
             ],
             "actions": [
                 {"id": "scan", "label": "Skanuj nową", "icon": "📷"},
                 {"id": "import", "label": "Importuj", "icon": "📥"},
+                {"id": "export", "label": "Eksportuj", "icon": "📊"}
             ]
         }
     
     @classmethod
     def _generate_cameras_view(cls, action: str, data: List[CameraFeed] = None) -> Dict:
-        """Generate cameras view - shows real cameras or empty state"""
-        # No simulated data - show empty state
+        """Generate cameras view with real camera data"""
+        try:
+            from apps.cameras.camera_manager import get_cameras_list, get_camera_stats
+            cameras = get_cameras_list()
+            stats = get_camera_stats()
+        except:
+            cameras = []
+            stats = {"total": 0, "online": 0, "offline": 0, "error": 0, "motion_detected": 0, "opencv_available": False}
+        
+        if not cameras:
+            # Empty state with camera setup instructions
+            return {
+                "type": "cameras",
+                "view": "empty_state",
+                "title": "🎥 Monitoring",
+                "subtitle": f"System monitoringu CCTV | OpenCV: {'✅' if stats['opencv_available'] else '❌'}",
+                "empty_message": "Brak skonfigurowanych kamer",
+                "empty_instructions": "Dodaj kamery RTSP/ONVIF używając komendy 'dodaj kamerę' lub 'połącz kamerę'. Wymagany adres RTSP: rtsp://user:pass@ip:port/stream",
+                "cameras": [],
+                "stats": [
+                    {"label": "Kamer", "value": 0, "icon": "🎥"},
+                    {"label": "Online", "value": 0, "icon": "🟢"},
+                    {"label": "Offline", "value": 0, "icon": "🔴"},
+                    {"label": "Ruch", "value": 0, "icon": "🏃"},
+                ],
+                "quick_actions": [
+                    {"cmd": "dodaj kamerę", "label": "➕ Dodaj kamerę", "icon": "➕"},
+                    {"cmd": "utwórz przykładowe", "label": "📷 Przykładowe", "icon": "📷"},
+                ],
+                "actions": [
+                    {"id": "add_camera", "label": "Dodaj kamerę", "icon": "➕"},
+                    {"id": "scan_network", "label": "Skanuj sieć", "icon": "🔍"},
+                    {"id": "test_opencv", "label": "Test OpenCV", "icon": "🧪"},
+                ]
+            }
+        
+        # Format camera data for display
+        formatted_cameras = []
+        for cam in cameras:
+            status_icon = {"online": "🟢", "offline": "🔴", "error": "❌"}.get(cam.get('status'), "⚪")
+            motion_icon = "🏃" if cam.get('motion_detected') else "💤"
+            
+            formatted_cameras.append({
+                "id": cam.get('id', ''),
+                "name": cam.get('name', ''),
+                "location": cam.get('location', ''),
+                "url": cam.get('url', ''),
+                "type": cam.get('type', 'rtsp'),
+                "status": cam.get('status', 'unknown'),
+                "status_icon": status_icon,
+                "motion_icon": motion_icon,
+                "resolution": cam.get('resolution', ''),
+                "fps": cam.get('fps', 0),
+                "last_frame": cam.get('last_frame', ''),
+                "recording": cam.get('recording', False)
+            })
+        
         return {
             "type": "cameras",
-            "view": "empty_state",
+            "view": "dashboard",
             "title": "🎥 Monitoring",
-            "subtitle": "System monitoringu CCTV",
-            "empty_message": "Brak skonfigurowanych kamer",
-            "empty_instructions": "Dodaj kamery RTSP/ONVIF lub połącz z systemem monitoringu.",
-            "cameras": [],
+            "subtitle": f"{stats['total']} kamer | {stats['online']} online | OpenCV: {'✅' if stats['opencv_available'] else '❌'}",
+            "columns": [
+                {"key": "name", "label": "Nazwa", "width": "20%"},
+                {"key": "location", "label": "Lokalizacja", "width": "15%"},
+                {"key": "status", "label": "Status", "width": "10%", "format": "badge"},
+                {"key": "url", "label": "Adres", "width": "30%"},
+                {"key": "motion_icon", "label": "Ruch", "width": "10%"},
+                {"key": "recording", "label": "Nagrywanie", "width": "15%", "format": "badge"}
+            ],
+            "data": formatted_cameras,
             "stats": [
-                {"label": "Kamery", "value": 0, "icon": "🎥"},
-                {"label": "Online", "value": 0, "icon": "✅"},
-                {"label": "Alerty", "value": 0, "icon": "🔔"},
+                {"label": "Kamer", "value": stats['total'], "icon": "🎥"},
+                {"label": "Online", "value": stats['online'], "icon": "🟢"},
+                {"label": "Offline", "value": stats['offline'], "icon": "🔴"},
+                {"label": "Ruch", "value": stats['motion_detected'], "icon": "🏃"},
             ],
             "quick_actions": [
                 {"cmd": "dodaj kamerę", "label": "➕ Dodaj kamerę", "icon": "➕"},
-                {"cmd": "skanuj sieć", "label": "🔍 Skanuj sieć", "icon": "🔍"},
+                {"cmd": "sprawdź połączenia", "label": "🔄 Testuj", "icon": "🔄"},
+                {"cmd": "nagraj wszystko", "label": "⏺️ Nagrywaj", "icon": "⏺️"},
             ],
             "actions": [
                 {"id": "add_camera", "label": "Dodaj kamerę", "icon": "➕"},
-                {"id": "scan_network", "label": "Skanuj sieć", "icon": "🔍"},
+                {"id": "test_connections", "label": "Testuj połączenia", "icon": "🔄"},
+                {"id": "start_recording", "label": "Rozpocznij nagrywanie", "icon": "⏺️"},
             ]
         }
     
@@ -1773,6 +1896,60 @@ class ViewGenerator:
             "actions": [
                 {"id": "save_connection", "label": "💾 Zapisz", "cmd": f"zapisz {provider_id}"},
                 {"id": "cancel", "label": "❌ Anuluj", "cmd": "chmura"},
+            ]
+        }
+    
+    @classmethod
+    def _generate_diagnostics_view(cls, action: str, data: Any = None) -> Dict:
+        """Generate diagnostics view with health check results"""
+        # Use cached results if available, otherwise show loading state
+        try:
+            from services.diagnostics import health_check
+            if health_check.results:
+                report = health_check._generate_report()
+            else:
+                report = {"summary": {"total_apps": 0, "functional": 0, "placeholder": 0, "errors": 0, "health_score": 0}, "apps": []}
+        except:
+            report = {"summary": {"total_apps": 0, "functional": 0, "placeholder": 0, "errors": 0, "health_score": 0}, "apps": []}
+        
+        summary = report.get("summary", {})
+        apps = report.get("apps", [])
+        
+        # Build app status list
+        app_status = []
+        for app in apps:
+            status_icon = {"functional": "✅", "placeholder": "⚠️", "error": "❌"}.get(app.get("status"), "❓")
+            app_status.append({
+                "id": app.get("app_id"),
+                "name": app.get("name"),
+                "status": app.get("status"),
+                "status_icon": status_icon,
+                "functional": app.get("functional", 0),
+                "placeholder": app.get("placeholder", 0),
+                "errors": app.get("errors", 0),
+                "features": app.get("features", [])
+            })
+        
+        return {
+            "type": "diagnostics",
+            "view": "dashboard",
+            "title": "🏥 System Diagnostics",
+            "subtitle": f"Health Score: {summary.get('health_score', 0)}% | {summary.get('functional', 0)}/{summary.get('total_features', 0)} funkcji działa",
+            "summary": summary,
+            "apps": app_status,
+            "stats": [
+                {"label": "Health Score", "value": f"{summary.get('health_score', 0)}%", "icon": "💚" if summary.get('health_score', 0) > 70 else "💛" if summary.get('health_score', 0) > 40 else "❤️"},
+                {"label": "Funkcjonalne", "value": summary.get('functional', 0), "icon": "✅"},
+                {"label": "Placeholder", "value": summary.get('placeholder', 0), "icon": "⚠️"},
+                {"label": "Błędy", "value": summary.get('errors', 0), "icon": "❌"},
+            ],
+            "quick_actions": [
+                {"cmd": "uruchom diagnostykę", "label": "🔄 Uruchom ponownie", "icon": "🔄"},
+                {"cmd": "pokaż błędy", "label": "❌ Pokaż błędy", "icon": "❌"},
+            ],
+            "actions": [
+                {"id": "run_diagnostics", "label": "Uruchom diagnostykę", "icon": "🔄"},
+                {"id": "export_report", "label": "Eksportuj raport", "icon": "📄"},
             ]
         }
     
@@ -3247,6 +3424,70 @@ async def get_tts_config(session_id: str = None):
 async def get_stt_config(session_id: str = None):
     """Get STT configuration for current language"""
     return language_manager.get_stt_config(session_id)
+
+# ============================================================================
+# COMMAND API ENDPOINTS (for shell client)
+# ============================================================================
+
+@app.post("/api/command/send")
+async def send_command(data: Dict):
+    """Send command and get response (for shell client)"""
+    command = data.get("command", "")
+    
+    if not command:
+        raise HTTPException(status_code=400, detail="Command required")
+    
+    # Process command using VoiceCommandProcessor
+    result = VoiceCommandProcessor.process(command)
+    
+    # Generate view for the command
+    if result.get("recognized"):
+        view = ViewGenerator.generate(
+            result.get("app_type", "system"),
+            result.get("action", "unknown"),
+            result.get("params", {})
+        )
+        
+        return {
+            "recognized": True,
+            "command": command,
+            "app_type": result.get("app_type"),
+            "action": result.get("action"),
+            "params": result.get("params"),
+            "confidence": result.get("confidence"),
+            "view": view
+        }
+    else:
+        return {
+            "recognized": False,
+            "command": command,
+            "app_type": "system",
+            "action": "unknown",
+            "error": "Command not recognized",
+            "view": ViewGenerator.generate("system", "unknown")
+        }
+
+# ============================================================================
+# DIAGNOSTICS API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/diagnostics")
+async def run_diagnostics():
+    """Run full system diagnostics"""
+    from services.diagnostics import health_check
+    report = await health_check.run_all_checks()
+    return report
+
+@app.get("/api/diagnostics/quick")
+async def get_quick_diagnostics():
+    """Get quick status of all apps"""
+    from services.diagnostics import health_check
+    if not health_check.results:
+        await health_check.run_all_checks()
+    return {
+        "status": health_check.get_quick_status(),
+        "last_check": health_check.last_check.isoformat() if health_check.last_check else None
+    }
 
 # ============================================================================
 # APP GENERATOR API ENDPOINTS

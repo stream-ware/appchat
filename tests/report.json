@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-13T16:38:29.530465",
+  "timestamp": "2025-12-13T16:42:36.655715",
   "suites": [
     {
       "name": "monitoring",
@@ -9,12 +9,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.2702457904815674,
+      "duration": 0.303250789642334,
       "tests": [
         {
           "name": "manifest_valid",
           "status": "passed",
-          "duration": 2.1457672119140625e-06,
+          "duration": 3.0994415283203125e-06,
           "message": "Manifest is valid",
           "output": "",
           "error": ""
@@ -22,7 +22,7 @@
         {
           "name": "scripts_exist",
           "status": "passed",
-          "duration": 0.00017976760864257812,
+          "duration": 0.00019121170043945312,
           "message": "Found 1 scripts",
           "output": "",
           "error": ""
@@ -30,7 +30,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.004039764404296875,
+          "duration": 0.003919363021850586,
           "message": "Makefile OK (Makefile)",
           "output": "",
           "error": ""
@@ -38,7 +38,7 @@
         {
           "name": "sandbox_run",
           "status": "passed",
-          "duration": 0.266024112701416,
+          "duration": 0.2991371154785156,
           "message": "Script syntax OK, output: 155 chars",
           "output": "python: can't open file '/home/tom/github/stream-ware/appchat/apps/monitoring/apps/monitoring/scripts/system_info.py': [Errno 2] No such file or directory\n",
           "error": ""
@@ -53,12 +53,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.2618699073791504,
+      "duration": 0.2713475227355957,
       "tests": [
         {
           "name": "manifest_valid",
           "status": "passed",
-          "duration": 3.337860107421875e-06,
+          "duration": 2.1457672119140625e-06,
           "message": "Manifest is valid",
           "output": "",
           "error": ""
@@ -66,7 +66,7 @@
         {
           "name": "scripts_exist",
           "status": "passed",
-          "duration": 0.00016021728515625,
+          "duration": 0.00014328956604003906,
           "message": "Found 2 scripts",
           "output": "",
           "error": ""
@@ -74,7 +74,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.005796909332275391,
+          "duration": 0.005733966827392578,
           "message": "Makefile OK (Makefile)",
           "output": "",
           "error": ""
@@ -82,7 +82,7 @@
         {
           "name": "sandbox_run",
           "status": "passed",
-          "duration": 0.25590944290161133,
+          "duration": 0.26546812057495117,
           "message": "Script syntax OK, output: 153 chars",
           "output": "python: can't open file '/home/tom/github/stream-ware/appchat/apps/services/apps/services/scripts/list_services.py': [Errno 2] No such file or directory\n",
           "error": ""
@@ -97,12 +97,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.25150442123413086,
+      "duration": 0.2645683288574219,
       "tests": [
         {
           "name": "manifest_valid",
           "status": "passed",
-          "duration": 1.9073486328125e-06,
+          "duration": 2.6226043701171875e-06,
           "message": "Manifest is valid",
           "output": "",
           "error": ""
@@ -110,7 +110,7 @@
         {
           "name": "scripts_exist",
           "status": "passed",
-          "duration": 0.00012826919555664062,
+          "duration": 0.00016379356384277344,
           "message": "Found 1 scripts",
           "output": "",
           "error": ""
@@ -118,7 +118,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.0037004947662353516,
+          "duration": 0.003681659698486328,
           "message": "Makefile OK (Makefile)",
           "output": "",
           "error": ""
@@ -126,7 +126,7 @@
         {
           "name": "sandbox_run",
           "status": "passed",
-          "duration": 0.24767374992370605,
+          "duration": 0.26072025299072266,
           "message": "Script syntax OK, output: 146 chars",
           "output": "python: can't open file '/home/tom/github/stream-ware/appchat/apps/files/apps/files/scripts/file_manager.py': [Errno 2] No such file or directory\n",
           "error": ""
@@ -141,12 +141,12 @@
       "failed": 0,
       "skipped": 2,
       "errors": 0,
-      "duration": 0.006899118423461914,
+      "duration": 0.007421255111694336,
       "tests": [
         {
           "name": "manifest_valid",
           "status": "passed",
-          "duration": 1.9073486328125e-06,
+          "duration": 2.1457672119140625e-06,
           "message": "Manifest is valid",
           "output": "",
           "error": ""
@@ -154,7 +154,7 @@
         {
           "name": "scripts_exist",
           "status": "skipped",
-          "duration": 0.0001461505889892578,
+          "duration": 0.0001327991485595703,
           "message": "No Python scripts found",
           "output": "",
           "error": ""
@@ -162,7 +162,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.006586790084838867,
+          "duration": 0.0071332454681396484,
           "message": "Makefile OK (Makefile.user)",
           "output": "",
           "error": ""
@@ -170,7 +170,7 @@
         {
           "name": "sandbox_run",
           "status": "skipped",
-          "duration": 0.00016427040100097656,
+          "duration": 0.00015306472778320312,
           "message": "No tests or scripts found",
           "output": "",
           "error": ""
@@ -185,7 +185,7 @@
       "failed": 0,
       "skipped": 2,
       "errors": 0,
-      "duration": 0.008049964904785156,
+      "duration": 0.007595539093017578,
       "tests": [
         {
           "name": "manifest_valid",
@@ -198,7 +198,7 @@
         {
           "name": "scripts_exist",
           "status": "skipped",
-          "duration": 4.8160552978515625e-05,
+          "duration": 6.008148193359375e-05,
           "message": "No Python scripts found",
           "output": "",
           "error": ""
@@ -206,7 +206,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.007825851440429688,
+          "duration": 0.0073850154876708984,
           "message": "Makefile OK (Makefile)",
           "output": "",
           "error": ""
@@ -214,7 +214,7 @@
         {
           "name": "sandbox_run",
           "status": "skipped",
-          "duration": 0.00017452239990234375,
+          "duration": 0.00014901161193847656,
           "message": "No tests or scripts found",
           "output": "",
           "error": ""
@@ -229,12 +229,12 @@
       "failed": 0,
       "skipped": 3,
       "errors": 0,
-      "duration": 0.00016450881958007812,
+      "duration": 0.00018024444580078125,
       "tests": [
         {
           "name": "manifest_valid",
           "status": "passed",
-          "duration": 1.6689300537109375e-06,
+          "duration": 1.1920928955078125e-06,
           "message": "Manifest is valid",
           "output": "",
           "error": ""
@@ -242,7 +242,7 @@
         {
           "name": "scripts_exist",
           "status": "skipped",
-          "duration": 6.198883056640625e-05,
+          "duration": 4.482269287109375e-05,
           "message": "No Python scripts found",
           "output": "",
           "error": ""
@@ -250,7 +250,7 @@
         {
           "name": "makefile_exists",
           "status": "skipped",
-          "duration": 3.981590270996094e-05,
+          "duration": 4.220008850097656e-05,
           "message": "No Makefile found",
           "output": "",
           "error": ""
@@ -258,7 +258,7 @@
         {
           "name": "sandbox_run",
           "status": "skipped",
-          "duration": 6.103515625e-05,
+          "duration": 9.202957153320312e-05,
           "message": "No tests or scripts found",
           "output": "",
           "error": ""
@@ -273,12 +273,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.2641739845275879,
+      "duration": 0.29099082946777344,
       "tests": [
         {
           "name": "manifest_valid",
           "status": "passed",
-          "duration": 9.5367431640625e-07,
+          "duration": 1.1920928955078125e-06,
           "message": "Manifest is valid",
           "output": "",
           "error": ""
@@ -286,7 +286,7 @@
         {
           "name": "scripts_exist",
           "status": "passed",
-          "duration": 5.245208740234375e-05,
+          "duration": 5.555152893066406e-05,
           "message": "Found 1 scripts",
           "output": "",
           "error": ""
@@ -294,7 +294,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.012860774993896484,
+          "duration": 0.013223648071289062,
           "message": "Makefile OK (Makefile)",
           "output": "",
           "error": ""
@@ -302,7 +302,7 @@
         {
           "name": "sandbox_run",
           "status": "passed",
-          "duration": 0.25125980377197266,
+          "duration": 0.2777104377746582,
           "message": "Script syntax OK, output: 149 chars",
           "output": "python: can't open file '/home/tom/github/stream-ware/appchat/apps/weather/apps/weather/scripts/get_weather.py': [Errno 2] No such file or directory\n",
           "error": ""
@@ -317,12 +317,12 @@
       "failed": 0,
       "skipped": 2,
       "errors": 0,
-      "duration": 0.00730586051940918,
+      "duration": 0.0075032711029052734,
       "tests": [
         {
           "name": "manifest_valid",
           "status": "passed",
-          "duration": 2.1457672119140625e-06,
+          "duration": 2.6226043701171875e-06,
           "message": "Manifest is valid",
           "output": "",
           "error": ""
@@ -330,7 +330,7 @@
         {
           "name": "scripts_exist",
           "status": "skipped",
-          "duration": 7.486343383789062e-05,
+          "duration": 0.00010061264038085938,
           "message": "No scripts directory",
           "output": "",
           "error": ""
@@ -338,7 +338,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.0071353912353515625,
+          "duration": 0.007301807403564453,
           "message": "Makefile OK (Makefile)",
           "output": "",
           "error": ""
@@ -346,7 +346,7 @@
         {
           "name": "sandbox_run",
           "status": "skipped",
-          "duration": 9.34600830078125e-05,
+          "duration": 9.822845458984375e-05,
           "message": "No tests or scripts found",
           "output": "",
           "error": ""
@@ -361,12 +361,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.2519993782043457,
+      "duration": 0.2643260955810547,
       "tests": [
         {
           "name": "manifest_valid",
           "status": "passed",
-          "duration": 1.430511474609375e-06,
+          "duration": 2.1457672119140625e-06,
           "message": "Manifest is valid",
           "output": "",
           "error": ""
@@ -374,7 +374,7 @@
         {
           "name": "scripts_exist",
           "status": "passed",
-          "duration": 8.58306884765625e-05,
+          "duration": 9.34600830078125e-05,
           "message": "Found 1 scripts",
           "output": "",
           "error": ""
@@ -382,7 +382,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.005192279815673828,
+          "duration": 0.004942417144775391,
           "message": "Makefile OK (Makefile)",
           "output": "",
           "error": ""
@@ -390,7 +390,7 @@
         {
           "name": "sandbox_run",
           "status": "passed",
-          "duration": 0.2467198371887207,
+          "duration": 0.25928807258605957,
           "message": "Script syntax OK, output: 149 chars",
           "output": "python: can't open file '/home/tom/github/stream-ware/appchat/apps/curllm/apps/curllm/scripts/curllm_client.py': [Errno 2] No such file or directory\n",
           "error": ""
@@ -405,7 +405,7 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.2673914432525635,
+      "duration": 0.26871371269226074,
       "tests": [
         {
           "name": "manifest_valid",
@@ -418,7 +418,7 @@
         {
           "name": "scripts_exist",
           "status": "passed",
-          "duration": 0.00013327598571777344,
+          "duration": 0.0002205371856689453,
           "message": "Found 1 scripts",
           "output": "",
           "error": ""
@@ -426,7 +426,7 @@
         {
           "name": "makefile_exists",
           "status": "passed",
-          "duration": 0.0035588741302490234,
+          "duration": 0.003638029098510742,
           "message": "Makefile OK (Makefile)",
           "output": "",
           "error": ""
@@ -434,7 +434,7 @@
         {
           "name": "sandbox_run",
           "status": "passed",
-          "duration": 0.26369714736938477,
+          "duration": 0.26485300064086914,
           "message": "Script syntax OK, output: 163 chars",
           "output": "python: can't open file '/home/tom/github/stream-ware/appchat/apps/cloud_storage/apps/cloud_storage/scripts/cloud_manager.py': [Errno 2] No such file or directory\n",
           "error": ""
@@ -449,12 +449,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.0012636184692382812,
+      "duration": 0.0012116432189941406,
       "tests": [
         {
           "name": "import",
           "status": "passed",
-          "duration": 1.4066696166992188e-05,
+          "duration": 1.239776611328125e-05,
           "message": "Import successful",
           "output": "",
           "error": ""
@@ -462,7 +462,7 @@
         {
           "name": "functionality",
           "status": "passed",
-          "duration": 0.001249551773071289,
+          "duration": 0.0011992454528808594,
           "message": "SQL: SELECT * FROM users LIMIT 100",
           "output": "",
           "error": ""
@@ -477,12 +477,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.0013725757598876953,
+      "duration": 0.0013549327850341797,
       "tests": [
         {
           "name": "import",
           "status": "passed",
-          "duration": 7.152557373046875e-06,
+          "duration": 5.7220458984375e-06,
           "message": "Import successful",
           "output": "",
           "error": ""
@@ -490,7 +490,7 @@
         {
           "name": "functionality",
           "status": "passed",
-          "duration": 0.0013654232025146484,
+          "duration": 0.0013492107391357422,
           "message": "Operation: list",
           "output": "",
           "error": ""
@@ -505,12 +505,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 0.00043487548828125,
+      "duration": 0.0005655288696289062,
       "tests": [
         {
           "name": "import",
           "status": "passed",
-          "duration": 3.5762786865234375e-06,
+          "duration": 5.4836273193359375e-06,
           "message": "Import successful",
           "output": "",
           "error": ""
@@ -518,7 +518,7 @@
         {
           "name": "functionality",
           "status": "passed",
-          "duration": 0.00043129920959472656,
+          "duration": 0.0005600452423095703,
           "message": "Command: free -h",
           "output": "",
           "error": ""
@@ -533,12 +533,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 4.363059997558594e-05,
+      "duration": 4.792213439941406e-05,
       "tests": [
         {
           "name": "import",
           "status": "passed",
-          "duration": 5.9604644775390625e-06,
+          "duration": 9.059906005859375e-06,
           "message": "Import successful",
           "output": "",
           "error": ""
@@ -546,7 +546,7 @@
         {
           "name": "functionality",
           "status": "passed",
-          "duration": 3.7670135498046875e-05,
+          "duration": 3.886222839355469e-05,
           "message": "Services: 6",
           "output": "",
           "error": ""
@@ -561,12 +561,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 9.34600830078125e-05,
+      "duration": 9.226799011230469e-05,
       "tests": [
         {
           "name": "import",
           "status": "passed",
-          "duration": 2.86102294921875e-06,
+          "duration": 3.814697265625e-06,
           "message": "Import successful",
           "output": "",
           "error": ""
@@ -574,7 +574,7 @@
         {
           "name": "functionality",
           "status": "passed",
-          "duration": 9.059906005859375e-05,
+          "duration": 8.845329284667969e-05,
           "message": "Sandbox create/destroy OK",
           "output": "",
           "error": ""
@@ -589,12 +589,12 @@
       "failed": 0,
       "skipped": 0,
       "errors": 0,
-      "duration": 3.1948089599609375e-05,
+      "duration": 4.38690185546875e-05,
       "tests": [
         {
           "name": "import",
           "status": "passed",
-          "duration": 5.4836273193359375e-06,
+          "duration": 5.245208740234375e-06,
           "message": "Import successful",
           "output": "",
           "error": ""
@@ -602,7 +602,7 @@
         {
           "name": "functionality",
           "status": "passed",
-          "duration": 2.6464462280273438e-05,
+          "duration": 3.8623809814453125e-05,
           "message": "Runtime: docker-compose",
           "output": "",
           "error": ""

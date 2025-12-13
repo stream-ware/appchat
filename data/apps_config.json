@@ -272,6 +272,15 @@
       "kod": "code",
       "generuj kod": "code",
       "napisz kod": "code"
+    },
+    "diagnostics": {
+      "diagnostyka": "run",
+      "diagnoza": "run",
+      "health check": "run",
+      "sprawdź system": "run",
+      "status systemu": "run",
+      "co działa": "run",
+      "co nie działa": "errors"
     }
   },
   "keywords": {
@@ -290,6 +299,7 @@
     "cloud_storage": ["chmur", "cloud", "onedrive", "nextcloud", "google drive", "sync", "upload", "download"],
     "shell": ["wykonaj", "uruchom", "terminal", "bash", "shell", "komenda"],
     "database": ["baza", "sql", "tabela", "rekord", "zapytanie"],
-    "curllm": ["llm", "ai", "chat", "gpt", "ollama", "claude", "model", "zapytaj", "przetłumacz", "podsumuj", "wyjaśnij"]
+    "curllm": ["llm", "ai", "chat", "gpt", "ollama", "claude", "model", "zapytaj", "przetłumacz", "podsumuj", "wyjaśnij"],
+    "diagnostics": ["diagnoz", "health", "check", "działa", "sprawdź", "test"]
   }
 }

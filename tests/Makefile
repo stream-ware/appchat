@@ -15,8 +15,23 @@ help:
 	@echo "  services      - Test all services"
 	@echo "  sandbox       - Test sandbox functionality"
 	@echo "  quick         - Quick tests (no sandbox)"
+	@echo "  e2e           - Run E2E command tests"
+	@echo "  views         - Run view rendering tests"
+	@echo "  gui           - Run GUI/E2E tests (requires server on 8001)"
+	@echo "  shell         - Run shell client tests"
+	@echo "  integration   - Run integration tests"
+	@echo "  ocr           - Run OCR integration tests"
+	@echo "  ci            - Run CI tests"
+	@echo "  ci-full       - Run full CI test suite"
 	@echo "  report        - View last test report"
 	@echo "  clean         - Remove test artifacts"
+	@echo ""
+	@echo "Shell Client Suites:"
+	@echo "  shell-basic   - Basic command tests"
+	@echo "  shell-internet- Internet integration tests"
+	@echo "  shell-cloud   - Cloud storage tests"
+	@echo "  shell-files   - File management tests"
+	@echo "  shell-diagnostic- Diagnostic tests"
 	@echo ""
 	@echo "Single tests:"
 	@echo "  test-app APP=weather      - Test specific app"
@@ -88,13 +103,46 @@ clean:
 e2e:
 	@cd .. && source venv/bin/activate && python -m tests.test_e2e_commands
 
+# ===== VIEW RENDERING TESTS =====
+
+views:
+	@cd .. && source venv/bin/activate && python -m tests.test_view_rendering
+
 # ===== GUI TESTS =====
 
 gui:
-	@cd .. && $(VENV) -m tests.test_gui
+	@cd .. && $(VENV) -m tests.test_gui --url http://localhost:8001
 
 gui-url:
 	@cd .. && $(VENV) -m tests.test_gui --url $(URL)
+
+# ===== SHELL CLIENT TESTS =====
+
+shell:
+	@cd .. && $(VENV) -m client.shell_client --suite all
+
+shell-basic:
+	@cd .. && $(VENV) -m client.shell_client --suite basic
+
+shell-internet:
+	@cd .. && $(VENV) -m client.shell_client --suite internet
+
+shell-cloud:
+	@cd .. && $(VENV) -m client.shell_client --suite cloud
+
+shell-files:
+	@cd .. && $(VENV) -m client.shell_client --suite files
+
+shell-diagnostic:
+	@cd .. && $(VENV) -m client.shell_client --suite diagnostic
+
+# ===== INTEGRATION TESTS =====
+
+integration:
+	@cd .. && $(VENV) -m tests.test_shell_client
+
+ocr:
+	@cd .. && $(VENV) -m tests.test_ocr_integration
 
 # ===== CI/CD =====
 
