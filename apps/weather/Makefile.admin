@@ -1,0 +1,89 @@
+# ============================================
+# WEATHER APP - Makefile.admin (Configuration)
+# For: Admins, Managers, System configuration
+# ============================================
+
+.PHONY: help config set-api set-default-city set-timeout enable disable backup restore test validate
+
+APP_NAME := weather
+APP_DIR := $(shell pwd)
+ENV_FILE := $(APP_DIR)/.env
+BACKUP_DIR := $(APP_DIR)/backups
+
+# ===========================================
+# TEXT DESCRIPTIONS (for text2makefile)
+# ===========================================
+# @text config: "Pokaż konfigurację aplikacji"
+# @text set-api: "Ustaw URL API pogodowego"
+# @text set-default-city: "Ustaw domyślne miasto"
+# @text set-timeout: "Ustaw timeout połączenia"
+# @text enable: "Włącz aplikację"
+# @text disable: "Wyłącz aplikację"
+# @text backup: "Zrób backup konfiguracji"
+# @text restore: "Przywróć konfigurację z backupu"
+# @text test: "Przetestuj połączenie z API"
+# @text validate: "Sprawdź poprawność konfiguracji"
+# ===========================================
+
+help:
+	@echo "⚙️ Weather App - Admin Commands (Makefile.admin)"
+	@echo "================================================"
+	@echo "  config              - Show current configuration"
+	@echo "  set-api URL=...     - Set weather API URL"
+	@echo "  set-default-city CITY=... - Set default city"
+	@echo "  set-timeout SEC=10  - Set connection timeout"
+	@echo "  enable              - Enable the app"
+	@echo "  disable             - Disable the app"
+	@echo "  backup              - Backup configuration"
+	@echo "  restore FILE=...    - Restore from backup"
+	@echo "  test                - Test API connection"
+	@echo "  validate            - Validate configuration"
+
+config:
+	@echo "📋 Current Configuration:"
+	@cat $(ENV_FILE) 2>/dev/null || echo "No .env file found"
+
+set-api:
+	@sed -i 's|WEATHER_API_URL=.*|WEATHER_API_URL=$(URL)|' $(ENV_FILE)
+	@echo '{"success": true, "key": "WEATHER_API_URL", "value": "$(URL)"}'
+
+set-default-city:
+	@sed -i 's|DEFAULT_CITY=.*|DEFAULT_CITY=$(CITY)|' $(ENV_FILE)
+	@echo '{"success": true, "key": "DEFAULT_CITY", "value": "$(CITY)"}'
+
+set-timeout:
+	@sed -i 's|WEATHER_TIMEOUT=.*|WEATHER_TIMEOUT=$(SEC)|' $(ENV_FILE)
+	@echo '{"success": true, "key": "WEATHER_TIMEOUT", "value": "$(SEC)"}'
+
+enable:
+	@sed -i 's|APP_ENABLED=.*|APP_ENABLED=true|' $(ENV_FILE)
+	@echo '{"success": true, "app": "$(APP_NAME)", "enabled": true}'
+
+disable:
+	@sed -i 's|APP_ENABLED=.*|APP_ENABLED=false|' $(ENV_FILE)
+	@echo '{"success": true, "app": "$(APP_NAME)", "enabled": false}'
+
+backup:
+	@mkdir -p $(BACKUP_DIR)
+	@cp $(ENV_FILE) $(BACKUP_DIR)/.env.$(shell date +%Y%m%d_%H%M%S)
+	@cp manifest.toml $(BACKUP_DIR)/manifest.toml.$(shell date +%Y%m%d_%H%M%S)
+	@echo '{"success": true, "backup_dir": "$(BACKUP_DIR)"}'
+
+restore:
+	@if [ -f "$(FILE)" ]; then \
+		cp "$(FILE)" $(ENV_FILE); \
+		echo '{"success": true, "restored": "$(FILE)"}'; \
+	else \
+		echo '{"success": false, "error": "Backup file not found"}'; \
+	fi
+
+test:
+	@echo "Testing API connection..."
+	@curl -s --connect-timeout 5 "https://api.open-meteo.com/v1/forecast?latitude=52.23&longitude=21.01&current_weather=true" > /dev/null && \
+		echo '{"success": true, "api": "connected"}' || \
+		echo '{"success": false, "error": "API connection failed"}'
+
+validate:
+	@echo "Validating configuration..."
+	@python3 -c "import tomllib; tomllib.load(open('manifest.toml', 'rb')); print('{\"manifest\": \"valid\"}')" 2>/dev/null || echo '{"manifest": "invalid"}'
+	@test -f $(ENV_FILE) && echo '{"env_file": "exists"}' || echo '{"env_file": "missing"}'

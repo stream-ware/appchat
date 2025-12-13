@@ -68,6 +68,39 @@ services:
     networks:
       - streamware-net
 
+  # Landing page / Oferta (PHP)
+  oferta:
+    image: php:8.2-apache
+    container_name: streamware-oferta
+    ports:
+      - "8080:80"
+    volumes:
+      - ./oferta:/var/www/html
+    environment:
+      - STREAMWARE_API_URL=http://streamware:8000
+    depends_on:
+      - streamware
+    restart: unless-stopped
+    networks:
+      - streamware-net
+
+  # Nginx reverse proxy (optional, for production)
+  nginx:
+    image: nginx:alpine
+    container_name: streamware-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/var/www/frontend:ro
+    depends_on:
+      - streamware
+      - oferta
+    profiles:
+      - prod
+    networks:
+      - streamware-net
+
 networks:
   streamware-net:
     driver: bridge

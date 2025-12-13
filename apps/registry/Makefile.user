@@ -1,0 +1,30 @@
+# ============================================
+# REGISTRY MANAGER - Makefile.user
+# For: Users - View only access
+# ============================================
+
+.PHONY: help list apps my-apps
+
+API_URL ?= http://localhost:8002
+
+# @text list: "Pokaż dostępne rejestry"
+# @text apps: "Pokaż dostępne aplikacje"
+# @text my-apps: "Pokaż moje aplikacje"
+
+help:
+	@echo "📦 Registry Manager - User Commands"
+	@echo "===================================="
+	@echo ""
+	@echo "  list    - Show available registries"
+	@echo "  apps    - Show available apps"
+	@echo "  my-apps - Show apps you have access to"
+
+list:
+	@curl -s $(API_URL)/api/registries | python3 -c "import json,sys; d=json.load(sys.stdin); [print(f'  {r[\"name\"]} ({r[\"type\"]})') for r in d.get('registries',[])]"
+
+apps:
+	@curl -s $(API_URL)/api/external-apps | python3 -c "import json,sys; d=json.load(sys.stdin); [print(f'  {a[\"name\"]}') for a in d.get('apps',[])]"
+
+my-apps:
+	@echo "Your accessible apps:"
+	@curl -s $(API_URL)/api/external-apps/my | python3 -c "import json,sys; d=json.load(sys.stdin); [print(f'  {a[\"name\"]}') for a in d.get('apps',[])]" 2>/dev/null || echo "  (none)"

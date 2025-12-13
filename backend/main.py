@@ -1,6 +1,8 @@
 """
 STREAMWARE MVP - Voice-Controlled Dashboard Platform
 Main FastAPI application with WebSocket for real-time voice interaction
+Includes Internet integrations: HTTP, MQTT, Email, RSS, Weather API, Webhooks
+Database: SQLite for conversations, config, and system data
 """
 
 import asyncio
@@ -9,46 +11,160 @@ import random
 import uuid
 import logging
 import os
+import ssl
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 from pathlib import Path
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+import httpx
+import aiohttp
+import feedparser
+
+# Local modules
+from backend.database import db, Database
+from backend.config import config, get_config, reload_config
+from backend.llm_manager import llm_manager, LLMManager
+from backend.app_registry import app_registry, AppRegistry
+from backend.makefile_converter import makefile_converter, MakefileConverter
+from backend.registry_manager import registry_manager, RegistryManager
+try:
+    import aiomqtt
+    MQTT_AVAILABLE = True
+except ImportError:
+    MQTT_AVAILABLE = False
+try:
+    import aiosmtplib
+    EMAIL_AVAILABLE = True
+except ImportError:
+    EMAIL_AVAILABLE = False
 
 # ============================================================================
-# LOGGING CONFIGURATION
+# LOGGING CONFIGURATION - YAML FORMAT
 # ============================================================================
 
 LOGS_DIR = Path("logs")
 LOGS_DIR.mkdir(exist_ok=True)
 
-# Configure logging with detailed format
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(LOGS_DIR / "streamware.log", encoding='utf-8')
-    ]
-)
+class YAMLFormatter(logging.Formatter):
+    """Custom YAML-style log formatter for better readability"""
+    
+    def format(self, record):
+        log_data = {
+            'time': self.formatTime(record, '%Y-%m-%d %H:%M:%S'),
+            'level': record.levelname,
+            'logger': record.name,
+            'message': record.getMessage(),
+        }
+        
+        # Add extra fields if present
+        if hasattr(record, 'user'):
+            log_data['user'] = record.user
+        if hasattr(record, 'session'):
+            log_data['session'] = record.session
+        if hasattr(record, 'command'):
+            log_data['command'] = record.command
+        if hasattr(record, 'app_type'):
+            log_data['app_type'] = record.app_type
+        if hasattr(record, 'action'):
+            log_data['action'] = record.action
+        if hasattr(record, 'url'):
+            log_data['url'] = record.url
+        if hasattr(record, 'duration_ms'):
+            log_data['duration_ms'] = record.duration_ms
+        
+        # Format as YAML-like output
+        lines = [f"- {log_data['time']}:"]
+        lines.append(f"    level: {log_data['level']}")
+        lines.append(f"    logger: {log_data['logger']}")
+        lines.append(f"    message: \"{log_data['message']}\"")
+        
+        for key in ['user', 'session', 'command', 'app_type', 'action', 'url', 'duration_ms']:
+            if key in log_data:
+                lines.append(f"    {key}: {log_data[key]}")
+        
+        return '\n'.join(lines)
 
+class ConsoleYAMLFormatter(logging.Formatter):
+    """Compact YAML formatter for console with colors"""
+    
+    COLORS = {
+        'DEBUG': '\033[36m',    # Cyan
+        'INFO': '\033[32m',     # Green
+        'WARNING': '\033[33m',  # Yellow
+        'ERROR': '\033[31m',    # Red
+        'CRITICAL': '\033[35m', # Magenta
+    }
+    RESET = '\033[0m'
+    
+    def format(self, record):
+        color = self.COLORS.get(record.levelname, '')
+        time_str = self.formatTime(record, '%H:%M:%S')
+        
+        # Build compact YAML line
+        line = f"{color}[{time_str}] {record.levelname:<8}{self.RESET} | {record.name}: {record.getMessage()}"
+        
+        # Add extra context on same line if present
+        extras = []
+        if hasattr(record, 'user'):
+            extras.append(f"user={record.user}")
+        if hasattr(record, 'session'):
+            extras.append(f"session={record.session[:8]}...")
+        if hasattr(record, 'command'):
+            extras.append(f"cmd=\"{record.command}\"")
+        if hasattr(record, 'app_type'):
+            extras.append(f"app={record.app_type}")
+        if hasattr(record, 'url'):
+            extras.append(f"url={record.url}")
+        
+        if extras:
+            line += f" {{ {', '.join(extras)} }}"
+        
+        return line
+
+# Setup loggers
 logger = logging.getLogger("streamware")
 logger.setLevel(logging.DEBUG)
 
-# Conversation logger
+# Console handler with colored YAML format
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(ConsoleYAMLFormatter())
+console_handler.setLevel(logging.INFO)
+logger.addHandler(console_handler)
+
+# File handler with full YAML format
+file_handler = logging.FileHandler(LOGS_DIR / "streamware.log", encoding='utf-8')
+file_handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s'))
+file_handler.setLevel(logging.DEBUG)
+logger.addHandler(file_handler)
+
+# YAML file handler for structured logs
+yaml_handler = logging.FileHandler(LOGS_DIR / "streamware.yaml", encoding='utf-8')
+yaml_handler.setFormatter(YAMLFormatter())
+yaml_handler.setLevel(logging.INFO)
+logger.addHandler(yaml_handler)
+
+# Conversation logger with YAML format
 conv_logger = logging.getLogger("conversations")
 conv_handler = logging.FileHandler(LOGS_DIR / "conversations.log", encoding='utf-8')
 conv_handler.setFormatter(logging.Formatter('%(asctime)s | %(message)s'))
 conv_logger.addHandler(conv_handler)
+conv_yaml_handler = logging.FileHandler(LOGS_DIR / "conversations.yaml", encoding='utf-8')
+conv_yaml_handler.setFormatter(YAMLFormatter())
+conv_logger.addHandler(conv_yaml_handler)
 conv_logger.setLevel(logging.INFO)
+
+# Prevent propagation to root logger
+logger.propagate = False
+conv_logger.propagate = False
 
 app = FastAPI(title="Streamware MVP", version="0.2.0", description="Voice-Controlled Dashboard Platform with Dynamic LLM-based Views")
 
@@ -63,6 +179,571 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================================================
+# INTERNET INTEGRATIONS MODULE
+# ============================================================================
+
+class IntegrationManager:
+    """Manages all internet integrations: HTTP, MQTT, Email, RSS, Weather, Webhooks"""
+    
+    def __init__(self):
+        self.http_client: Optional[httpx.AsyncClient] = None
+        self.webhooks: Dict[str, List[str]] = {}  # event -> [urls]
+        self.mqtt_client = None
+        self.rss_feeds: Dict[str, str] = {}  # name -> url
+        self.cached_data: Dict[str, Any] = {}
+        self.last_fetch: Dict[str, datetime] = {}
+        logger.info("🌐 IntegrationManager initialized")
+    
+    async def start(self):
+        """Initialize async clients"""
+        self.http_client = httpx.AsyncClient(timeout=30.0)
+        logger.info("🔗 HTTP client started")
+    
+    async def stop(self):
+        """Cleanup async clients"""
+        if self.http_client:
+            await self.http_client.aclose()
+        logger.info("🔌 IntegrationManager stopped")
+    
+    # ==================== HTTP/REST API ====================
+    
+    async def http_get(self, url: str, headers: Dict = None) -> Dict:
+        """Make HTTP GET request"""
+        try:
+            logger.info(f"🌐 HTTP GET: {url}")
+            response = await self.http_client.get(url, headers=headers or {})
+            response.raise_for_status()
+            return {"success": True, "status": response.status_code, "data": response.json()}
+        except Exception as e:
+            logger.error(f"❌ HTTP GET failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def http_post(self, url: str, data: Dict, headers: Dict = None) -> Dict:
+        """Make HTTP POST request"""
+        try:
+            logger.info(f"🌐 HTTP POST: {url}")
+            response = await self.http_client.post(url, json=data, headers=headers or {})
+            response.raise_for_status()
+            return {"success": True, "status": response.status_code, "data": response.json()}
+        except Exception as e:
+            logger.error(f"❌ HTTP POST failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ==================== WEBHOOKS ====================
+    
+    def register_webhook(self, event: str, url: str):
+        """Register webhook URL for an event"""
+        if event not in self.webhooks:
+            self.webhooks[event] = []
+        self.webhooks[event].append(url)
+        logger.info(f"🪝 Webhook registered: {event} -> {url}")
+    
+    def unregister_webhook(self, event: str, url: str):
+        """Remove webhook URL"""
+        if event in self.webhooks and url in self.webhooks[event]:
+            self.webhooks[event].remove(url)
+            logger.info(f"🪝 Webhook removed: {event} -> {url}")
+    
+    async def trigger_webhook(self, event: str, payload: Dict):
+        """Trigger all webhooks for an event"""
+        if event not in self.webhooks:
+            return []
+        
+        results = []
+        for url in self.webhooks[event]:
+            try:
+                logger.info(f"🪝 Triggering webhook: {event} -> {url}")
+                response = await self.http_client.post(url, json={
+                    "event": event,
+                    "timestamp": datetime.now().isoformat(),
+                    "payload": payload
+                })
+                results.append({"url": url, "status": response.status_code})
+            except Exception as e:
+                logger.error(f"❌ Webhook failed: {url} - {e}")
+                results.append({"url": url, "error": str(e)})
+        return results
+    
+    # ==================== WEATHER API ====================
+    
+    async def get_weather(self, city: str = "Warsaw") -> Dict:
+        """Get weather data from Open-Meteo API (free, no key required)"""
+        try:
+            # Geocoding first
+            geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"
+            geo_resp = await self.http_client.get(geo_url)
+            geo_data = geo_resp.json()
+            
+            if not geo_data.get("results"):
+                return {"success": False, "error": f"City not found: {city}"}
+            
+            lat = geo_data["results"][0]["latitude"]
+            lon = geo_data["results"][0]["longitude"]
+            
+            # Weather data
+            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto"
+            weather_resp = await self.http_client.get(weather_url)
+            weather_data = weather_resp.json()
+            
+            current = weather_data.get("current", {})
+            logger.info(f"🌤️ Weather fetched for {city}: {current.get('temperature_2m')}°C")
+            
+            return {
+                "success": True,
+                "city": city,
+                "temperature": current.get("temperature_2m"),
+                "humidity": current.get("relative_humidity_2m"),
+                "wind_speed": current.get("wind_speed_10m"),
+                "weather_code": current.get("weather_code"),
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"❌ Weather fetch failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ==================== RSS FEEDS ====================
+    
+    def add_rss_feed(self, name: str, url: str):
+        """Add RSS feed to monitor"""
+        self.rss_feeds[name] = url
+        logger.info(f"📰 RSS feed added: {name} -> {url}")
+    
+    async def fetch_rss(self, name: str = None) -> Dict:
+        """Fetch RSS feed(s)"""
+        results = {}
+        feeds_to_fetch = {name: self.rss_feeds[name]} if name else self.rss_feeds
+        
+        for feed_name, url in feeds_to_fetch.items():
+            try:
+                logger.info(f"📰 Fetching RSS: {feed_name}")
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url) as response:
+                        content = await response.text()
+                        feed = feedparser.parse(content)
+                        
+                        entries = []
+                        for entry in feed.entries[:10]:  # Last 10 entries
+                            entries.append({
+                                "title": entry.get("title", ""),
+                                "link": entry.get("link", ""),
+                                "published": entry.get("published", ""),
+                                "summary": entry.get("summary", "")[:200]
+                            })
+                        
+                        results[feed_name] = {
+                            "title": feed.feed.get("title", feed_name),
+                            "entries": entries,
+                            "fetched_at": datetime.now().isoformat()
+                        }
+            except Exception as e:
+                logger.error(f"❌ RSS fetch failed for {feed_name}: {e}")
+                results[feed_name] = {"error": str(e)}
+        
+        return results
+    
+    # ==================== EMAIL (SMTP) ====================
+    
+    async def send_email(self, to: str, subject: str, body: str, 
+                        smtp_host: str = "smtp.gmail.com", smtp_port: int = 587,
+                        username: str = None, password: str = None) -> Dict:
+        """Send email via SMTP"""
+        if not EMAIL_AVAILABLE:
+            return {"success": False, "error": "aiosmtplib not installed"}
+        
+        try:
+            from email.message import EmailMessage
+            
+            msg = EmailMessage()
+            msg["From"] = username or "streamware@example.com"
+            msg["To"] = to
+            msg["Subject"] = subject
+            msg.set_content(body)
+            
+            logger.info(f"📧 Sending email to: {to}")
+            
+            if username and password:
+                await aiosmtplib.send(
+                    msg,
+                    hostname=smtp_host,
+                    port=smtp_port,
+                    username=username,
+                    password=password,
+                    start_tls=True
+                )
+            else:
+                # Simulate sending for demo
+                logger.info(f"📧 [DEMO] Email would be sent to: {to}")
+                return {"success": True, "demo": True, "to": to, "subject": subject}
+            
+            logger.info(f"✅ Email sent to: {to}")
+            return {"success": True, "to": to, "subject": subject}
+        except Exception as e:
+            logger.error(f"❌ Email send failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ==================== MQTT (IoT) ====================
+    
+    async def mqtt_publish(self, topic: str, payload: Dict,
+                          broker: str = "test.mosquitto.org", port: int = 1883) -> Dict:
+        """Publish message to MQTT broker"""
+        if not MQTT_AVAILABLE:
+            return {"success": False, "error": "aiomqtt not installed"}
+        
+        try:
+            logger.info(f"📡 MQTT publish: {topic} -> {broker}")
+            async with aiomqtt.Client(broker, port) as client:
+                await client.publish(topic, json.dumps(payload))
+            logger.info(f"✅ MQTT published to: {topic}")
+            return {"success": True, "topic": topic, "broker": broker}
+        except Exception as e:
+            logger.error(f"❌ MQTT publish failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ==================== EXTERNAL APIs ====================
+    
+    async def fetch_crypto_price(self, symbol: str = "bitcoin") -> Dict:
+        """Fetch cryptocurrency price from CoinGecko (free API)"""
+        try:
+            url = f"https://api.coingecko.com/api/v3/simple/price?ids={symbol}&vs_currencies=usd,eur,pln"
+            response = await self.http_client.get(url)
+            data = response.json()
+            
+            if symbol in data:
+                logger.info(f"💰 Crypto price fetched: {symbol}")
+                return {"success": True, "symbol": symbol, "prices": data[symbol]}
+            return {"success": False, "error": "Symbol not found"}
+        except Exception as e:
+            logger.error(f"❌ Crypto fetch failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def fetch_exchange_rates(self, base: str = "EUR") -> Dict:
+        """Fetch exchange rates from exchangerate.host (free API)"""
+        try:
+            url = f"https://api.exchangerate.host/latest?base={base}"
+            response = await self.http_client.get(url)
+            data = response.json()
+            
+            if data.get("success", True):
+                logger.info(f"💱 Exchange rates fetched for: {base}")
+                rates = data.get("rates", {})
+                return {
+                    "success": True,
+                    "base": base,
+                    "rates": {k: rates.get(k) for k in ["USD", "PLN", "GBP", "CHF"] if k in rates},
+                    "timestamp": datetime.now().isoformat()
+                }
+            return {"success": False, "error": "API error"}
+        except Exception as e:
+            logger.error(f"❌ Exchange rates fetch failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def fetch_news(self, query: str = "technology") -> Dict:
+        """Fetch news headlines (simulated - real API would need key)"""
+        # Simulated news for demo
+        headlines = [
+            {"title": f"Breaking: {query.title()} sector sees major growth", "source": "TechNews"},
+            {"title": f"New developments in {query} industry", "source": "BusinessDaily"},
+            {"title": f"Experts predict {query} trends for 2025", "source": "FutureWatch"},
+            {"title": f"Investment opportunities in {query}", "source": "FinanceToday"},
+            {"title": f"How {query} is changing the world", "source": "GlobalReport"},
+        ]
+        logger.info(f"📰 News fetched for: {query}")
+        return {"success": True, "query": query, "headlines": headlines}
+    
+    def get_status(self) -> Dict:
+        """Get integration status"""
+        return {
+            "http_client": "active" if self.http_client else "inactive",
+            "mqtt_available": MQTT_AVAILABLE,
+            "email_available": EMAIL_AVAILABLE,
+            "webhooks_count": sum(len(urls) for urls in self.webhooks.values()),
+            "rss_feeds_count": len(self.rss_feeds),
+            "cached_items": len(self.cached_data)
+        }
+
+# Global integration manager
+integrations = IntegrationManager()
+
+# Default RSS feeds
+integrations.add_rss_feed("tech", "https://feeds.arstechnica.com/arstechnica/technology-lab")
+integrations.add_rss_feed("security", "https://feeds.feedburner.com/TheHackersNews")
+integrations.add_rss_feed("business", "https://feeds.bbci.co.uk/news/business/rss.xml")
+
+# ============================================================================
+# USER & ACCESS CONTROL SYSTEM
+# ============================================================================
+
+@dataclass
+class User:
+    username: str
+    password: str  # In production, use hashed passwords
+    role: str
+    display_name: str
+    permissions: List[str]
+
+class UserManager:
+    """Manages users, authentication, and role-based access control"""
+    
+    # Predefined roles with permissions
+    ROLES = {
+        "admin": {
+            "display": "Administrator",
+            "permissions": ["*"],  # All permissions
+            "description": "Pełny dostęp do wszystkich funkcji systemu"
+        },
+        "office": {
+            "display": "Pracownik biurowy",
+            "permissions": ["documents", "sales", "analytics", "system"],
+            "description": "Dostęp do dokumentów, sprzedaży i analityki"
+        },
+        "security": {
+            "display": "Ochrona",
+            "permissions": ["cameras", "home", "system"],
+            "description": "Dostęp do monitoringu i systemów bezpieczeństwa"
+        },
+        "manager": {
+            "display": "Manager",
+            "permissions": ["documents", "sales", "analytics", "cameras", "system"],
+            "description": "Dostęp do biura i monitoringu"
+        },
+        "guest": {
+            "display": "Gość",
+            "permissions": ["system"],
+            "description": "Tylko podstawowe funkcje systemu"
+        }
+    }
+    
+    # Predefined users
+    USERS = {
+        "admin": User("admin", "admin123", "admin", "Administrator", ["*"]),
+        "kowalski": User("kowalski", "biuro123", "office", "Jan Kowalski", ["documents", "sales", "analytics", "system"]),
+        "dozorca": User("dozorca", "ochrona123", "security", "Tomasz Nowak", ["cameras", "home", "system"]),
+        "manager": User("manager", "manager123", "manager", "Anna Wiśniewska", ["documents", "sales", "analytics", "cameras", "system"]),
+        "gosc": User("gosc", "gosc123", "guest", "Gość", ["system"]),
+    }
+    
+    def __init__(self):
+        self.logged_in_users: Dict[str, User] = {}  # session_id -> User
+        logger.info("👥 UserManager initialized")
+    
+    def authenticate(self, username: str, password: str) -> Optional[User]:
+        """Authenticate user with username and password"""
+        user = self.USERS.get(username.lower())
+        if user and user.password == password:
+            logger.info(f"✅ User authenticated: {username}")
+            return user
+        logger.warning(f"❌ Authentication failed for: {username}")
+        return None
+    
+    def login(self, session_id: str, username: str, password: str) -> Dict:
+        """Login user to session"""
+        user = self.authenticate(username, password)
+        if user:
+            self.logged_in_users[session_id] = user
+            return {
+                "success": True,
+                "user": user.display_name,
+                "role": self.ROLES[user.role]["display"],
+                "permissions": user.permissions
+            }
+        return {"success": False, "error": "Nieprawidłowy login lub hasło"}
+    
+    def logout(self, session_id: str) -> bool:
+        """Logout user from session"""
+        if session_id in self.logged_in_users:
+            user = self.logged_in_users.pop(session_id)
+            logger.info(f"👋 User logged out: {user.username}")
+            return True
+        return False
+    
+    def get_user(self, session_id: str) -> Optional[User]:
+        """Get logged in user for session"""
+        return self.logged_in_users.get(session_id)
+    
+    def has_permission(self, session_id: str, app_type: str) -> bool:
+        """Check if user has permission for app_type"""
+        user = self.get_user(session_id)
+        if not user:
+            return False
+        if "*" in user.permissions:
+            return True
+        return app_type in user.permissions
+    
+    def get_allowed_apps(self, session_id: str) -> List[str]:
+        """Get list of apps user has access to"""
+        user = self.get_user(session_id)
+        if not user:
+            return []
+        if "*" in user.permissions:
+            return ["documents", "cameras", "sales", "home", "analytics", "internet", "system"]
+        return user.permissions
+    
+    def get_users_list(self) -> List[Dict]:
+        """Get list of all users (for admin)"""
+        return [
+            {
+                "username": u.username,
+                "display_name": u.display_name,
+                "role": u.role,
+                "role_display": self.ROLES[u.role]["display"]
+            }
+            for u in self.USERS.values()
+        ]
+
+# Global user manager
+user_manager = UserManager()
+
+# ============================================================================
+# SKILLS & FEATURES REGISTRY
+# ============================================================================
+
+class SkillRegistry:
+    """Registry of all available skills/features with metadata"""
+    
+    APPS = {
+        "documents": {
+            "name": "📄 Dokumenty",
+            "description": "Zarządzanie fakturami, umowami i skanami",
+            "icon": "📄",
+            "color": "#3b82f6",
+            "skills": [
+                {"cmd": "pokaż faktury", "name": "Pokaż faktury", "desc": "Wyświetl listę faktur"},
+                {"cmd": "zeskanuj fakturę", "name": "Skanuj", "desc": "Zeskanuj nowy dokument"},
+                {"cmd": "suma faktur", "name": "Suma", "desc": "Pokaż sumę faktur"},
+                {"cmd": "faktury do zapłaty", "name": "Do zapłaty", "desc": "Faktury oczekujące"},
+                {"cmd": "umowy", "name": "Umowy", "desc": "Lista umów"},
+                {"cmd": "przeterminowane", "name": "Przeterminowane", "desc": "Dokumenty po terminie"},
+                {"cmd": "eksportuj do excel", "name": "Eksport", "desc": "Eksportuj do Excel"},
+                {"cmd": "archiwum", "name": "Archiwum", "desc": "Dokumenty archiwalne"},
+            ]
+        },
+        "cameras": {
+            "name": "🎥 Monitoring",
+            "description": "Kamery CCTV i system bezpieczeństwa",
+            "icon": "🎥",
+            "color": "#ef4444",
+            "skills": [
+                {"cmd": "pokaż kamery", "name": "Kamery", "desc": "Podgląd wszystkich kamer"},
+                {"cmd": "gdzie ruch", "name": "Ruch", "desc": "Wykryty ruch"},
+                {"cmd": "alerty", "name": "Alerty", "desc": "Aktywne alerty"},
+                {"cmd": "nagraj", "name": "Nagrywanie", "desc": "Rozpocznij nagrywanie"},
+                {"cmd": "parking", "name": "Parking", "desc": "Kamery parkingu"},
+                {"cmd": "wejście", "name": "Wejście", "desc": "Kamera wejścia"},
+                {"cmd": "mapa ciepła", "name": "Mapa ciepła", "desc": "Heatmapa ruchu"},
+                {"cmd": "historia nagrań", "name": "Historia", "desc": "Archiwum nagrań"},
+            ]
+        },
+        "sales": {
+            "name": "📊 Sprzedaż",
+            "description": "Dashboard KPI i raporty sprzedażowe",
+            "icon": "📊",
+            "color": "#10b981",
+            "skills": [
+                {"cmd": "pokaż sprzedaż", "name": "Dashboard", "desc": "Dashboard sprzedaży"},
+                {"cmd": "raport", "name": "Raport", "desc": "Generuj raport"},
+                {"cmd": "porównaj regiony", "name": "Regiony", "desc": "Porównanie regionów"},
+                {"cmd": "top produkty", "name": "Top produkty", "desc": "Najlepsze produkty"},
+                {"cmd": "kpi", "name": "KPI", "desc": "Wskaźniki KPI"},
+                {"cmd": "prognoza", "name": "Prognoza", "desc": "Prognoza sprzedaży"},
+                {"cmd": "lejek sprzedaży", "name": "Lejek", "desc": "Sales funnel"},
+                {"cmd": "prowizje", "name": "Prowizje", "desc": "Prowizje sprzedaży"},
+            ]
+        },
+        "home": {
+            "name": "🏠 Smart Home",
+            "description": "Inteligentny dom i czujniki IoT",
+            "icon": "🏠",
+            "color": "#f59e0b",
+            "skills": [
+                {"cmd": "temperatura", "name": "Temperatura", "desc": "Odczyty temperatury"},
+                {"cmd": "oświetlenie", "name": "Światła", "desc": "Sterowanie oświetleniem"},
+                {"cmd": "energia", "name": "Energia", "desc": "Zużycie energii"},
+                {"cmd": "ogrzewanie", "name": "Ogrzewanie", "desc": "Sterowanie ogrzewaniem"},
+                {"cmd": "klimatyzacja", "name": "Klimatyzacja", "desc": "Sterowanie AC"},
+                {"cmd": "alarm", "name": "Alarm", "desc": "System alarmowy"},
+                {"cmd": "czujniki", "name": "Czujniki", "desc": "Status czujników"},
+                {"cmd": "harmonogram", "name": "Harmonogram", "desc": "Automatyzacje"},
+            ]
+        },
+        "analytics": {
+            "name": "📈 Analityka",
+            "description": "Raporty, wykresy i predykcje",
+            "icon": "📈",
+            "color": "#8b5cf6",
+            "skills": [
+                {"cmd": "analiza", "name": "Analiza", "desc": "Dashboard analityczny"},
+                {"cmd": "wykres", "name": "Wykresy", "desc": "Generuj wykres"},
+                {"cmd": "raport dzienny", "name": "Dzienny", "desc": "Raport dzienny"},
+                {"cmd": "raport tygodniowy", "name": "Tygodniowy", "desc": "Raport tygodniowy"},
+                {"cmd": "anomalie", "name": "Anomalie", "desc": "Wykryj anomalie"},
+                {"cmd": "predykcja", "name": "Predykcja", "desc": "Prognozowanie AI"},
+                {"cmd": "porównanie", "name": "Porównanie", "desc": "Porównaj okresy"},
+            ]
+        },
+        "internet": {
+            "name": "🌐 Internet",
+            "description": "Integracje z usługami zewnętrznymi",
+            "icon": "🌐",
+            "color": "#06b6d4",
+            "skills": [
+                {"cmd": "pogoda", "name": "Pogoda", "desc": "Aktualna pogoda"},
+                {"cmd": "bitcoin", "name": "Crypto", "desc": "Kursy kryptowalut"},
+                {"cmd": "kursy walut", "name": "Waluty", "desc": "Kursy walut"},
+                {"cmd": "rss", "name": "RSS", "desc": "Kanały RSS"},
+                {"cmd": "news", "name": "News", "desc": "Wiadomości"},
+                {"cmd": "email", "name": "Email", "desc": "Wyślij email"},
+                {"cmd": "mqtt", "name": "MQTT", "desc": "IoT messaging"},
+                {"cmd": "integracje", "name": "Status", "desc": "Status integracji"},
+            ]
+        },
+        "system": {
+            "name": "⚙️ System",
+            "description": "Ustawienia i pomoc",
+            "icon": "⚙️",
+            "color": "#6b7280",
+            "skills": [
+                {"cmd": "pomoc", "name": "Pomoc", "desc": "Lista komend"},
+                {"cmd": "status", "name": "Status", "desc": "Status systemu"},
+                {"cmd": "historia", "name": "Historia", "desc": "Historia konwersacji"},
+                {"cmd": "wyczyść", "name": "Wyczyść", "desc": "Wyczyść widok"},
+                {"cmd": "ustawienia", "name": "Ustawienia", "desc": "Konfiguracja"},
+            ]
+        }
+    }
+    
+    @classmethod
+    def get_all_apps(cls) -> Dict:
+        """Get all registered apps"""
+        return cls.APPS
+    
+    @classmethod
+    def get_apps_for_user(cls, permissions: List[str]) -> Dict:
+        """Get apps filtered by user permissions"""
+        if "*" in permissions:
+            return cls.APPS
+        return {k: v for k, v in cls.APPS.items() if k in permissions}
+    
+    @classmethod
+    def get_app(cls, app_type: str) -> Optional[Dict]:
+        """Get single app by type"""
+        return cls.APPS.get(app_type)
+    
+    @classmethod
+    def get_all_commands(cls) -> List[Dict]:
+        """Get flat list of all commands"""
+        commands = []
+        for app_type, app in cls.APPS.items():
+            for skill in app["skills"]:
+                commands.append({
+                    "app": app_type,
+                    "app_name": app["name"],
+                    "command": skill["cmd"],
+                    "name": skill["name"],
+                    "description": skill["desc"]
+                })
+        return commands
 
 # ============================================================================
 # DATA MODELS
@@ -290,12 +971,43 @@ class VoiceCommandProcessor:
         "anomalie": ("analytics", "anomalies"),
         "predykcja": ("analytics", "prediction"),
         
-        # === SYSTEM (5 cases) ===
+        # === SYSTEM (10 cases) ===
         "pomoc": ("system", "help"),
         "wyczyść": ("system", "clear"),
         "status": ("system", "status"),
         "ustawienia": ("system", "settings"),
         "historia": ("system", "history"),
+        "zaloguj": ("system", "login"),
+        "login": ("system", "login"),
+        "wyloguj": ("system", "logout"),
+        "logout": ("system", "logout"),
+        "kto": ("system", "whoami"),
+        "użytkownicy": ("system", "users"),
+        "start": ("system", "welcome"),
+        "aplikacje": ("system", "welcome"),
+        
+        # === INTERNET / INTEGRATIONS (20 cases) ===
+        "pogoda": ("internet", "weather"),
+        "weather": ("internet", "weather"),
+        "pogoda warszawa": ("internet", "weather_warsaw"),
+        "pogoda kraków": ("internet", "weather_krakow"),
+        "wiadomości": ("internet", "news"),
+        "news": ("internet", "news"),
+        "rss": ("internet", "rss"),
+        "kanały rss": ("internet", "rss"),
+        "bitcoin": ("internet", "crypto"),
+        "crypto": ("internet", "crypto"),
+        "kryptowaluty": ("internet", "crypto"),
+        "kursy walut": ("internet", "exchange"),
+        "exchange": ("internet", "exchange"),
+        "wyślij email": ("internet", "send_email"),
+        "email": ("internet", "send_email"),
+        "mqtt": ("internet", "mqtt"),
+        "iot": ("internet", "mqtt"),
+        "webhook": ("internet", "webhook"),
+        "api": ("internet", "api_status"),
+        "integracje": ("internet", "integrations"),
+        "http": ("internet", "http_test"),
     }
     
     # Keywords for fuzzy matching
@@ -306,6 +1018,7 @@ class VoiceCommandProcessor:
         "home": ["dom", "temp", "światł", "prąd", "ogrzew", "klima"],
         "analytics": ["anali", "wykres", "statyst", "trend", "porówn"],
         "security": ["alarm", "bezpiecz", "dostęp", "strefa", "intruz"],
+        "internet": ["pogod", "weather", "news", "rss", "bitcoin", "crypto", "kurs", "email", "mqtt", "webhook", "api", "http"],
     }
     
     @classmethod
@@ -369,10 +1082,19 @@ class ViewGenerator:
             return cls._generate_home_view(action, data)
         elif app_type == "analytics":
             return cls._generate_analytics_view(action, data)
+        elif app_type == "internet":
+            return cls._generate_internet_view(action, data)
         elif app_type == "system":
             return cls._generate_system_view(action)
         else:
             return cls._generate_empty_view()
+    
+    @classmethod
+    async def generate_async(cls, app_type: str, action: str, data: Any = None) -> Dict[str, Any]:
+        """Async version for internet integrations that need API calls"""
+        if app_type == "internet":
+            return await cls._generate_internet_view_async(action, data)
+        return cls.generate(app_type, action, data)
     
     @classmethod
     def _generate_documents_view(cls, action: str, data: List[Document] = None) -> Dict:
@@ -570,12 +1292,283 @@ class ViewGenerator:
         }
     
     @classmethod
+    def _generate_internet_view(cls, action: str, data: Any = None) -> Dict:
+        """Generate internet integration view (sync version with cached/simulated data)"""
+        status = integrations.get_status()
+        
+        if action in ["weather", "weather_warsaw", "weather_krakow"]:
+            city = "Kraków" if "krakow" in action else "Warszawa"
+            return {
+                "type": "internet",
+                "view": "weather",
+                "title": f"🌤️ Pogoda - {city}",
+                "subtitle": "Dane z Open-Meteo API",
+                "loading": True,
+                "message": f"Pobieranie danych pogodowych dla {city}...",
+                "stats": [
+                    {"label": "Miasto", "value": city, "icon": "📍"},
+                    {"label": "Status", "value": "Ładowanie...", "icon": "⏳"},
+                ],
+                "actions": [
+                    {"id": "refresh_weather", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
+        elif action == "crypto":
+            return {
+                "type": "internet",
+                "view": "crypto",
+                "title": "💰 Kryptowaluty",
+                "subtitle": "Dane z CoinGecko API",
+                "loading": True,
+                "message": "Pobieranie kursów kryptowalut...",
+                "stats": [
+                    {"label": "Bitcoin", "value": "Ładowanie...", "icon": "₿"},
+                    {"label": "Ethereum", "value": "Ładowanie...", "icon": "Ξ"},
+                ],
+                "actions": [
+                    {"id": "refresh_crypto", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
+        elif action == "exchange":
+            return {
+                "type": "internet",
+                "view": "exchange",
+                "title": "💱 Kursy walut",
+                "subtitle": "Dane z Exchange Rate API",
+                "loading": True,
+                "message": "Pobieranie kursów walut...",
+                "stats": [
+                    {"label": "EUR/PLN", "value": "Ładowanie...", "icon": "💶"},
+                    {"label": "USD/PLN", "value": "Ładowanie...", "icon": "💵"},
+                ],
+                "actions": [
+                    {"id": "refresh_exchange", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
+        elif action == "rss":
+            return {
+                "type": "internet",
+                "view": "rss",
+                "title": "📰 Kanały RSS",
+                "subtitle": f"{status['rss_feeds_count']} skonfigurowanych kanałów",
+                "feeds": list(integrations.rss_feeds.keys()),
+                "loading": True,
+                "message": "Pobieranie wiadomości RSS...",
+                "actions": [
+                    {"id": "refresh_rss", "label": "Odśwież", "icon": "🔄"},
+                    {"id": "add_feed", "label": "Dodaj kanał", "icon": "➕"},
+                ]
+            }
+        
+        elif action == "news":
+            return {
+                "type": "internet",
+                "view": "news",
+                "title": "📰 Wiadomości",
+                "subtitle": "Najnowsze nagłówki",
+                "loading": True,
+                "message": "Pobieranie wiadomości...",
+                "actions": [
+                    {"id": "refresh_news", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
+        elif action == "send_email":
+            return {
+                "type": "internet",
+                "view": "email",
+                "title": "📧 Wyślij Email",
+                "subtitle": f"SMTP: {'Dostępny' if EMAIL_AVAILABLE else 'Niedostępny'}",
+                "form": {
+                    "fields": [
+                        {"name": "to", "label": "Do", "type": "email"},
+                        {"name": "subject", "label": "Temat", "type": "text"},
+                        {"name": "body", "label": "Treść", "type": "textarea"},
+                    ]
+                },
+                "stats": [
+                    {"label": "SMTP", "value": "Gotowy" if EMAIL_AVAILABLE else "Brak", "icon": "📧"},
+                ],
+                "actions": [
+                    {"id": "send_email", "label": "Wyślij", "icon": "📤"},
+                ]
+            }
+        
+        elif action == "mqtt":
+            return {
+                "type": "internet",
+                "view": "mqtt",
+                "title": "📡 MQTT / IoT",
+                "subtitle": f"Protokół: {'Dostępny' if MQTT_AVAILABLE else 'Niedostępny'}",
+                "broker": "test.mosquitto.org",
+                "stats": [
+                    {"label": "MQTT", "value": "Gotowy" if MQTT_AVAILABLE else "Brak", "icon": "📡"},
+                    {"label": "Broker", "value": "test.mosquitto.org", "icon": "🌐"},
+                ],
+                "actions": [
+                    {"id": "mqtt_publish", "label": "Publikuj", "icon": "📤"},
+                    {"id": "mqtt_subscribe", "label": "Subskrybuj", "icon": "📥"},
+                ]
+            }
+        
+        elif action == "webhook":
+            return {
+                "type": "internet",
+                "view": "webhooks",
+                "title": "🪝 Webhooks",
+                "subtitle": f"{status['webhooks_count']} zarejestrowanych webhooków",
+                "webhooks": integrations.webhooks,
+                "stats": [
+                    {"label": "Webhooks", "value": status['webhooks_count'], "icon": "🪝"},
+                ],
+                "actions": [
+                    {"id": "add_webhook", "label": "Dodaj webhook", "icon": "➕"},
+                    {"id": "test_webhook", "label": "Testuj", "icon": "🧪"},
+                ]
+            }
+        
+        elif action in ["integrations", "api_status"]:
+            return {
+                "type": "internet",
+                "view": "integrations",
+                "title": "🌐 Integracje internetowe",
+                "subtitle": "Status wszystkich usług",
+                "services": [
+                    {"name": "HTTP Client", "status": status['http_client'], "icon": "🌐"},
+                    {"name": "MQTT", "status": "active" if MQTT_AVAILABLE else "unavailable", "icon": "📡"},
+                    {"name": "Email SMTP", "status": "active" if EMAIL_AVAILABLE else "unavailable", "icon": "📧"},
+                    {"name": "RSS Feeds", "status": f"{status['rss_feeds_count']} feeds", "icon": "📰"},
+                    {"name": "Webhooks", "status": f"{status['webhooks_count']} registered", "icon": "🪝"},
+                    {"name": "Weather API", "status": "active", "icon": "🌤️"},
+                    {"name": "Crypto API", "status": "active", "icon": "💰"},
+                    {"name": "Exchange API", "status": "active", "icon": "💱"},
+                ],
+                "stats": [
+                    {"label": "HTTP", "value": status['http_client'], "icon": "🌐"},
+                    {"label": "MQTT", "value": "✓" if MQTT_AVAILABLE else "✗", "icon": "📡"},
+                    {"label": "Email", "value": "✓" if EMAIL_AVAILABLE else "✗", "icon": "📧"},
+                    {"label": "RSS", "value": status['rss_feeds_count'], "icon": "📰"},
+                ],
+                "actions": [
+                    {"id": "test_all", "label": "Testuj wszystko", "icon": "🧪"},
+                    {"id": "refresh_status", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
+        else:
+            return {
+                "type": "internet",
+                "view": "overview",
+                "title": "🌐 Internet & Integracje",
+                "subtitle": "Protokoły i usługi zewnętrzne",
+                "protocols": ["HTTP/REST", "WebSocket", "MQTT", "SMTP", "RSS/Atom"],
+                "apis": ["Weather", "Crypto", "Exchange Rates", "News"],
+                "stats": [
+                    {"label": "Protokoły", "value": 5, "icon": "🔌"},
+                    {"label": "API", "value": 4, "icon": "🌐"},
+                    {"label": "Webhooks", "value": status['webhooks_count'], "icon": "🪝"},
+                ],
+                "actions": [
+                    {"id": "show_integrations", "label": "Pokaż integracje", "icon": "📋"},
+                ]
+            }
+    
+    @classmethod
+    async def _generate_internet_view_async(cls, action: str, data: Any = None) -> Dict:
+        """Generate internet view with real API data"""
+        
+        if action in ["weather", "weather_warsaw", "weather_krakow"]:
+            city = "Kraków" if "krakow" in action else "Warszawa"
+            weather = await integrations.get_weather(city)
+            
+            if weather.get("success"):
+                return {
+                    "type": "internet",
+                    "view": "weather",
+                    "title": f"🌤️ Pogoda - {city}",
+                    "subtitle": f"Aktualizacja: {weather.get('timestamp', '')[:19]}",
+                    "data": weather,
+                    "stats": [
+                        {"label": "Temperatura", "value": f"{weather.get('temperature')}°C", "icon": "🌡️"},
+                        {"label": "Wilgotność", "value": f"{weather.get('humidity')}%", "icon": "💧"},
+                        {"label": "Wiatr", "value": f"{weather.get('wind_speed')} km/h", "icon": "💨"},
+                        {"label": "Miasto", "value": city, "icon": "📍"},
+                    ],
+                    "actions": [
+                        {"id": "refresh_weather", "label": "Odśwież", "icon": "🔄"},
+                    ]
+                }
+            else:
+                return cls._generate_internet_view(action, data)
+        
+        elif action == "crypto":
+            btc = await integrations.fetch_crypto_price("bitcoin")
+            eth = await integrations.fetch_crypto_price("ethereum")
+            
+            return {
+                "type": "internet",
+                "view": "crypto",
+                "title": "💰 Kryptowaluty",
+                "subtitle": f"Aktualizacja: {datetime.now().strftime('%H:%M:%S')}",
+                "data": {"bitcoin": btc, "ethereum": eth},
+                "stats": [
+                    {"label": "Bitcoin (USD)", "value": f"${btc.get('prices', {}).get('usd', 'N/A'):,}" if btc.get('success') else "Błąd", "icon": "₿"},
+                    {"label": "Bitcoin (PLN)", "value": f"{btc.get('prices', {}).get('pln', 'N/A'):,} PLN" if btc.get('success') else "Błąd", "icon": "₿"},
+                    {"label": "Ethereum (USD)", "value": f"${eth.get('prices', {}).get('usd', 'N/A'):,}" if eth.get('success') else "Błąd", "icon": "Ξ"},
+                    {"label": "Ethereum (PLN)", "value": f"{eth.get('prices', {}).get('pln', 'N/A'):,} PLN" if eth.get('success') else "Błąd", "icon": "Ξ"},
+                ],
+                "actions": [
+                    {"id": "refresh_crypto", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
+        elif action == "rss":
+            feeds = await integrations.fetch_rss()
+            
+            return {
+                "type": "internet",
+                "view": "rss",
+                "title": "📰 Kanały RSS",
+                "subtitle": f"{len(feeds)} kanałów załadowanych",
+                "feeds": feeds,
+                "stats": [
+                    {"label": "Kanały", "value": len(feeds), "icon": "📰"},
+                    {"label": "Artykuły", "value": sum(len(f.get('entries', [])) for f in feeds.values()), "icon": "📄"},
+                ],
+                "actions": [
+                    {"id": "refresh_rss", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
+        elif action == "news":
+            news = await integrations.fetch_news("technology")
+            
+            return {
+                "type": "internet",
+                "view": "news",
+                "title": "📰 Wiadomości",
+                "subtitle": "Najnowsze nagłówki",
+                "headlines": news.get("headlines", []),
+                "stats": [
+                    {"label": "Artykuły", "value": len(news.get("headlines", [])), "icon": "📰"},
+                ],
+                "actions": [
+                    {"id": "refresh_news", "label": "Odśwież", "icon": "🔄"},
+                ]
+            }
+        
+        return cls._generate_internet_view(action, data)
+    
+    @classmethod
     def _generate_system_view(cls, action: str) -> Dict:
         if action == "help":
             return {
                 "type": "system",
                 "view": "help",
-                "title": "❓ Pomoc - 50+ dostępnych komend",
+                "title": "❓ Pomoc - 85+ dostępnych komend",
                 "commands": [
                     {"category": "📄 Dokumenty (15)", "commands": [
                         "pokaż faktury", "zeskanuj fakturę", "ile faktur", "suma faktur",
@@ -597,6 +1590,10 @@ class ViewGenerator:
                         "analiza", "wykres", "raport dzienny", "raport tygodniowy",
                         "anomalie", "predykcja", "porównanie"
                     ]},
+                    {"category": "🌐 Internet (20)", "commands": [
+                        "pogoda", "weather", "bitcoin", "crypto", "kursy walut",
+                        "rss", "news", "email", "mqtt", "webhook", "integracje"
+                    ]},
                     {"category": "⚙️ System (5)", "commands": [
                         "pomoc", "wyczyść", "status", "ustawienia", "historia"
                     ]},
@@ -609,17 +1606,68 @@ class ViewGenerator:
                 "title": "📜 Historia konwersacji",
                 "message": "Historia jest zapisywana w logs/conversations.log"
             }
+        elif action == "login":
+            return {
+                "type": "system",
+                "view": "login",
+                "title": "🔐 Logowanie",
+                "subtitle": "Wprowadź dane logowania",
+                "message": "Wpisz: login [użytkownik] [hasło]\n\nDostępni użytkownicy demo:\n• admin / admin123 - pełny dostęp\n• kowalski / biuro123 - biuro\n• dozorca / ochrona123 - ochrona\n• manager / manager123 - manager\n• gosc / gosc123 - gość",
+                "users": user_manager.get_users_list()
+            }
+        elif action == "logout":
+            return {
+                "type": "system",
+                "view": "logout",
+                "title": "👋 Wylogowano",
+                "message": "Zostałeś wylogowany. Wpisz 'login' aby zalogować się ponownie."
+            }
+        elif action == "whoami":
+            return {
+                "type": "system",
+                "view": "whoami",
+                "title": "👤 Aktualny użytkownik",
+                "message": "Sprawdzanie użytkownika..."
+            }
+        elif action == "users":
+            return {
+                "type": "system",
+                "view": "users",
+                "title": "👥 Lista użytkowników",
+                "users": user_manager.get_users_list(),
+                "roles": user_manager.ROLES
+            }
+        elif action == "welcome":
+            return cls._generate_welcome_view()
         else:
-            return cls._generate_empty_view()
+            return cls._generate_welcome_view()
+    
+    @classmethod
+    def _generate_welcome_view(cls, user_permissions: List[str] = None) -> Dict:
+        """Generate welcome dashboard with all apps and skills"""
+        if user_permissions is None:
+            user_permissions = ["*"]  # Show all by default
+        
+        apps = SkillRegistry.get_apps_for_user(user_permissions)
+        
+        return {
+            "type": "welcome",
+            "view": "dashboard",
+            "title": "🚀 Streamware Dashboard",
+            "subtitle": "Wybierz aplikację lub wpisz komendę",
+            "apps": apps,
+            "total_skills": sum(len(app["skills"]) for app in apps.values()),
+            "message": "Kliknij aplikację aby zobaczyć dostępne komendy lub wpisz polecenie w chat.",
+            "quick_commands": [
+                {"cmd": "pomoc", "label": "📋 Pomoc"},
+                {"cmd": "login", "label": "🔐 Zaloguj"},
+                {"cmd": "status", "label": "⚙️ Status"},
+            ]
+        }
     
     @classmethod
     def _generate_empty_view(cls) -> Dict:
-        return {
-            "type": "empty",
-            "view": "welcome",
-            "title": "👋 Witaj w Streamware v0.2",
-            "message": "Powiedz komendę głosową lub wpisz w chat. Obsługuję 50+ komend:\n• 'Pokaż faktury' - dokumenty biurowe\n• 'Monitoring' - kamery bezpieczeństwa\n• 'Sprzedaż' - dashboard KPI\n• 'Temperatura' - smart home\n• 'Analiza' - raporty i wykresy\n• 'Pomoc' - lista wszystkich komend"
-        }
+        return cls._generate_welcome_view()
 
 # ============================================================================
 # RESPONSE GENERATOR (Simulates TTS responses)
@@ -646,6 +1694,8 @@ class ResponseGenerator:
             return cls._home_response(action, view_data)
         elif app_type == "analytics":
             return cls._analytics_response(action, view_data)
+        elif app_type == "internet":
+            return cls._internet_response(action, view_data)
         elif app_type == "system":
             return cls._system_response(action)
         
@@ -724,13 +1774,38 @@ class ResponseGenerator:
         return responses.get(action, f"Wyświetlam dashboard analityczny. Suma zdarzeń: {stats.get('Suma zdarzeń', 0)}.")
     
     @classmethod
+    def _internet_response(cls, action: str, view: Dict) -> str:
+        stats = {s["label"]: s["value"] for s in view.get("stats", [])}
+        
+        responses = {
+            "weather": f"Pobieram dane pogodowe. Temperatura: {stats.get('Temperatura', 'ładowanie...')}.",
+            "weather_warsaw": "Pobieram pogodę dla Warszawy.",
+            "weather_krakow": "Pobieram pogodę dla Krakowa.",
+            "crypto": f"Wyświetlam kursy kryptowalut. Bitcoin: {stats.get('Bitcoin (USD)', 'ładowanie...')}.",
+            "exchange": "Pobieram kursy walut.",
+            "rss": f"Wyświetlam kanały RSS. Załadowano {stats.get('Kanały', 0)} kanałów.",
+            "news": "Pobieram najnowsze wiadomości.",
+            "send_email": "Otwieram formularz wysyłki email.",
+            "mqtt": f"MQTT broker: {stats.get('Broker', 'test.mosquitto.org')}. Gotowy do publikacji.",
+            "webhook": f"Wyświetlam webhooks. Zarejestrowanych: {stats.get('Webhooks', 0)}.",
+            "integrations": "Wyświetlam status wszystkich integracji internetowych.",
+            "api_status": "Sprawdzam status API i usług zewnętrznych.",
+        }
+        return responses.get(action, "Wyświetlam integracje internetowe.")
+    
+    @classmethod
     def _system_response(cls, action: str) -> str:
         responses = {
-            "help": "Wyświetlam 50+ dostępnych komend. Obsługuję dokumenty, kamery, sprzedaż, smart home i analitykę.",
+            "help": "Wyświetlam 90+ dostępnych komend. Obsługuję dokumenty, kamery, sprzedaż, smart home, analitykę i integracje internetowe.",
             "clear": "Czyszczę widok.",
             "status": "System działa prawidłowo. Wszystkie komponenty aktywne.",
             "history": "Wyświetlam historię konwersacji.",
             "settings": "Otwieram ustawienia systemu.",
+            "login": "Wyświetlam ekran logowania. Wpisz: login [użytkownik] [hasło]",
+            "logout": "Wylogowano pomyślnie.",
+            "whoami": "Sprawdzam aktualnego użytkownika.",
+            "users": "Wyświetlam listę użytkowników systemu.",
+            "welcome": "Wyświetlam dashboard z dostępnymi aplikacjami.",
         }
         return responses.get(action, "OK.")
 
@@ -878,10 +1953,82 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             data = await websocket.receive_json()
             
             if data.get("type") == "voice_command":
-                command = data.get("text", "")
+                command = data.get("text", "").strip()
+                
+                # Check for login command: "login username password"
+                if command.lower().startswith("login "):
+                    parts = command.split()
+                    if len(parts) >= 3:
+                        username = parts[1]
+                        password = parts[2]
+                        result = user_manager.login(client_id, username, password)
+                        
+                        if result["success"]:
+                            user = user_manager.get_user(client_id)
+                            permissions = user.permissions if user else []
+                            view_data = ViewGenerator._generate_welcome_view(permissions)
+                            response_text = f"Zalogowano jako {result['user']} ({result['role']}). Masz dostęp do: {', '.join(user_manager.get_allowed_apps(client_id))}"
+                            await manager.send_message(client_id, {
+                                "type": "login_success",
+                                "user": result,
+                                "response_text": response_text,
+                                "view": view_data,
+                                "timestamp": datetime.now().isoformat()
+                            })
+                        else:
+                            await manager.send_message(client_id, {
+                                "type": "login_failed",
+                                "error": result["error"],
+                                "response_text": result["error"],
+                                "timestamp": datetime.now().isoformat()
+                            })
+                        continue
+                
+                # Check for logout command
+                if command.lower() in ["logout", "wyloguj"]:
+                    user_manager.logout(client_id)
+                    view_data = ViewGenerator._generate_welcome_view()
+                    await manager.send_message(client_id, {
+                        "type": "logout",
+                        "response_text": "Wylogowano pomyślnie.",
+                        "view": view_data,
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    continue
+                
+                # Check for whoami command
+                if command.lower() in ["kto", "whoami"]:
+                    user = user_manager.get_user(client_id)
+                    if user:
+                        response_text = f"Jesteś zalogowany jako: {user.display_name} (rola: {user_manager.ROLES[user.role]['display']})"
+                        permissions = user.permissions
+                    else:
+                        response_text = "Nie jesteś zalogowany. Wpisz 'login' aby się zalogować."
+                        permissions = ["system"]
+                    
+                    await manager.send_message(client_id, {
+                        "type": "response",
+                        "response_text": response_text,
+                        "view": {"type": "system", "view": "whoami", "title": "👤 Użytkownik", "message": response_text},
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    continue
                 
                 # Process command
                 intent = VoiceCommandProcessor.process(command)
+                
+                # Check permissions
+                user = user_manager.get_user(client_id)
+                app_type = intent["app_type"]
+                
+                if user and not user_manager.has_permission(client_id, app_type):
+                    await manager.send_message(client_id, {
+                        "type": "access_denied",
+                        "response_text": f"🚫 Brak dostępu do: {app_type}. Twoja rola ({user_manager.ROLES[user.role]['display']}) nie ma uprawnień do tej funkcji.",
+                        "view": ViewGenerator._generate_welcome_view(user.permissions),
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    continue
                 
                 # Generate view
                 view_data = ViewGenerator.generate(
@@ -905,18 +2052,33 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 })
             
             elif data.get("type") == "action":
-                # Handle button actions
+                # Handle button actions (clicking on app/skill)
                 action_id = data.get("action_id")
                 app_type = data.get("app_type")
+                cmd = data.get("command")  # Direct command from clicking skill
                 
-                # Regenerate view with fresh data
-                view_data = ViewGenerator.generate(app_type, action_id)
-                
-                await manager.send_message(client_id, {
-                    "type": "view_update",
-                    "view": view_data,
-                    "timestamp": datetime.now().isoformat()
-                })
+                if cmd:
+                    # Execute the command directly
+                    intent = VoiceCommandProcessor.process(cmd)
+                    view_data = ViewGenerator.generate(intent["app_type"], intent["action"])
+                    response_text = ResponseGenerator.generate(intent, view_data)
+                    
+                    await manager.send_message(client_id, {
+                        "type": "response",
+                        "intent": intent,
+                        "response_text": response_text,
+                        "view": view_data,
+                        "timestamp": datetime.now().isoformat()
+                    })
+                else:
+                    # Regenerate view with fresh data
+                    view_data = ViewGenerator.generate(app_type, action_id)
+                    
+                    await manager.send_message(client_id, {
+                        "type": "view_update",
+                        "view": view_data,
+                        "timestamp": datetime.now().isoformat()
+                    })
             
             elif data.get("type") == "refresh":
                 # Refresh current view with new data
@@ -930,6 +2092,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     })
     
     except WebSocketDisconnect:
+        user_manager.logout(client_id)
         manager.disconnect(client_id)
 
 # Simulate camera stream endpoint
@@ -976,7 +2139,7 @@ async def export_conversation(session_id: str):
 
 @app.get("/api/commands")
 async def list_commands():
-    """List all available commands (50+)"""
+    """List all available commands (85+)"""
     return {
         "total_commands": len(VoiceCommandProcessor.INTENTS),
         "categories": {
@@ -985,6 +2148,7 @@ async def list_commands():
             "sales": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "sales"],
             "home": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "home"],
             "analytics": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "analytics"],
+            "internet": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "internet"],
             "system": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "system"],
         }
     }
@@ -999,12 +2163,780 @@ async def get_logs():
         return {"logs": lines}
     return {"logs": []}
 
+# ============================================================================
+# INTERNET INTEGRATION API ENDPOINTS
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize integrations on startup"""
+    await integrations.start()
+    await llm_manager.start()
+    
+    # Register LLM providers from database
+    for provider in db.get_llm_providers():
+        llm_manager.register_provider(provider["id"], provider)
+    
+    # Set active LLM from config
+    active_llm = db.get_active_llm()
+    if active_llm:
+        llm_manager.set_active(active_llm["id"], active_llm["default_model"])
+    
+    # Check service health
+    await llm_manager.check_service_health()
+    
+    # Scan and load modular apps
+    loaded_apps = app_registry.scan_apps()
+    
+    logger.info("🌐 Internet integrations started")
+    logger.info("🤖 LLM manager started")
+    logger.info(f"💾 Database: {db.db_path}")
+    logger.info(f"📦 Apps loaded: {len(loaded_apps)}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    await integrations.stop()
+    await llm_manager.stop()
+    logger.info("🔌 Internet integrations stopped")
+    logger.info("🤖 LLM manager stopped")
+
+@app.get("/api/integrations/status")
+async def integrations_status():
+    """Get status of all internet integrations"""
+    return integrations.get_status()
+
+@app.get("/api/weather/{city}")
+async def get_weather(city: str = "Warsaw"):
+    """Get weather for a city"""
+    return await integrations.get_weather(city)
+
+@app.get("/api/crypto/{symbol}")
+async def get_crypto(symbol: str = "bitcoin"):
+    """Get cryptocurrency price"""
+    return await integrations.fetch_crypto_price(symbol)
+
+@app.get("/api/exchange/{base}")
+async def get_exchange_rates(base: str = "EUR"):
+    """Get exchange rates"""
+    return await integrations.fetch_exchange_rates(base)
+
+@app.get("/api/rss")
+async def get_rss_feeds():
+    """Get all RSS feeds"""
+    return await integrations.fetch_rss()
+
+@app.get("/api/rss/{feed_name}")
+async def get_rss_feed(feed_name: str):
+    """Get specific RSS feed"""
+    if feed_name not in integrations.rss_feeds:
+        raise HTTPException(status_code=404, detail=f"Feed '{feed_name}' not found")
+    return await integrations.fetch_rss(feed_name)
+
+@app.post("/api/rss")
+async def add_rss_feed(feed: Dict):
+    """Add new RSS feed"""
+    name = feed.get("name")
+    url = feed.get("url")
+    if not name or not url:
+        raise HTTPException(status_code=400, detail="Name and URL required")
+    integrations.add_rss_feed(name, url)
+    return {"success": True, "message": f"Feed '{name}' added"}
+
+@app.get("/api/news/{query}")
+async def get_news(query: str = "technology"):
+    """Get news headlines"""
+    return await integrations.fetch_news(query)
+
+@app.post("/api/email")
+async def send_email(email_data: Dict):
+    """Send email (demo mode without credentials)"""
+    to = email_data.get("to")
+    subject = email_data.get("subject", "Streamware Notification")
+    body = email_data.get("body", "")
+    if not to:
+        raise HTTPException(status_code=400, detail="Recipient email required")
+    return await integrations.send_email(to, subject, body)
+
+@app.post("/api/mqtt/publish")
+async def mqtt_publish(mqtt_data: Dict):
+    """Publish MQTT message"""
+    topic = mqtt_data.get("topic", "streamware/test")
+    payload = mqtt_data.get("payload", {})
+    broker = mqtt_data.get("broker", "test.mosquitto.org")
+    return await integrations.mqtt_publish(topic, payload, broker)
+
+@app.post("/api/webhooks")
+async def register_webhook(webhook: Dict):
+    """Register a webhook"""
+    event = webhook.get("event")
+    url = webhook.get("url")
+    if not event or not url:
+        raise HTTPException(status_code=400, detail="Event and URL required")
+    integrations.register_webhook(event, url)
+    return {"success": True, "message": f"Webhook registered for '{event}'"}
+
+@app.delete("/api/webhooks")
+async def unregister_webhook(webhook: Dict):
+    """Unregister a webhook"""
+    event = webhook.get("event")
+    url = webhook.get("url")
+    if not event or not url:
+        raise HTTPException(status_code=400, detail="Event and URL required")
+    integrations.unregister_webhook(event, url)
+    return {"success": True, "message": f"Webhook removed for '{event}'"}
+
+@app.get("/api/webhooks")
+async def list_webhooks():
+    """List all registered webhooks"""
+    return {"webhooks": integrations.webhooks}
+
+@app.post("/api/webhooks/trigger/{event}")
+async def trigger_webhook(event: str, payload: Dict):
+    """Manually trigger webhooks for an event"""
+    results = await integrations.trigger_webhook(event, payload)
+    return {"event": event, "results": results}
+
+@app.get("/api/http/test")
+async def http_test():
+    """Test HTTP client with a simple request"""
+    result = await integrations.http_get("https://httpbin.org/get")
+    return result
+
+@app.post("/api/http/get")
+async def http_get_proxy(request_data: Dict):
+    """Make HTTP GET request to specified URL"""
+    url = request_data.get("url")
+    headers = request_data.get("headers", {})
+    if not url:
+        raise HTTPException(status_code=400, detail="URL required")
+    return await integrations.http_get(url, headers)
+
+@app.post("/api/http/post")
+async def http_post_proxy(request_data: Dict):
+    """Make HTTP POST request to specified URL"""
+    url = request_data.get("url")
+    data = request_data.get("data", {})
+    headers = request_data.get("headers", {})
+    if not url:
+        raise HTTPException(status_code=400, detail="URL required")
+    return await integrations.http_post(url, data, headers)
+
+# ============================================================================
+# CONFIGURATION & ADMIN API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/config")
+async def get_all_config():
+    """Get all configuration values"""
+    return {
+        "config": db.get_all_config(),
+        "env": config.to_dict()
+    }
+
+@app.get("/api/config/{key}")
+async def get_config_value(key: str):
+    """Get specific configuration value"""
+    value = db.get_config(key)
+    if value is None:
+        raise HTTPException(status_code=404, detail=f"Config key '{key}' not found")
+    return {"key": key, "value": value}
+
+@app.put("/api/config/{key}")
+async def set_config_value(key: str, data: Dict):
+    """Set configuration value"""
+    value = data.get("value")
+    type_ = data.get("type", "string")
+    description = data.get("description")
+    db.set_config(key, value, type_, description)
+    return {"success": True, "key": key, "value": value}
+
+@app.post("/api/config/reload")
+async def reload_configuration():
+    """Reload configuration from .env file"""
+    reload_config()
+    return {"success": True, "message": "Configuration reloaded"}
+
+# ============================================================================
+# LLM MANAGEMENT API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/llm/providers")
+async def get_llm_providers():
+    """Get all LLM providers"""
+    return {
+        "providers": llm_manager.get_providers_info(),
+        "active": llm_manager.get_active()
+    }
+
+@app.get("/api/llm/active")
+async def get_active_llm():
+    """Get active LLM provider"""
+    return llm_manager.get_active()
+
+@app.post("/api/llm/active")
+async def set_active_llm(data: Dict):
+    """Set active LLM provider"""
+    provider_id = data.get("provider")
+    model = data.get("model")
+    
+    if not provider_id:
+        raise HTTPException(status_code=400, detail="Provider ID required")
+    
+    success = llm_manager.set_active(provider_id, model)
+    if success:
+        db.set_active_llm(provider_id, model)
+        return {"success": True, "provider": provider_id, "model": model}
+    
+    raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+
+@app.get("/api/llm/models")
+async def get_available_models():
+    """Get available models for all providers"""
+    return await llm_manager.get_available_models()
+
+@app.get("/api/llm/models/{provider_id}")
+async def get_provider_models(provider_id: str):
+    """Get available models for specific provider"""
+    models = await llm_manager.get_available_models(provider_id)
+    return {"provider": provider_id, "models": models.get(provider_id, [])}
+
+@app.get("/api/llm/health")
+async def check_llm_health():
+    """Check health of all LLM services"""
+    return await llm_manager.check_service_health()
+
+@app.post("/api/llm/chat")
+async def llm_chat(data: Dict):
+    """Send chat message to LLM"""
+    message = data.get("message", "")
+    system_prompt = data.get("system_prompt")
+    history = data.get("history", [])
+    
+    if not message:
+        raise HTTPException(status_code=400, detail="Message required")
+    
+    response = await llm_manager.chat(message, system_prompt, history)
+    return {
+        "content": response.content,
+        "model": response.model,
+        "provider": response.provider,
+        "tokens_used": response.tokens_used,
+        "error": response.error
+    }
+
+@app.put("/api/llm/providers/{provider_id}")
+async def update_llm_provider(provider_id: str, data: Dict):
+    """Update LLM provider configuration"""
+    db.update_llm_provider(provider_id, **data)
+    
+    # Re-register provider
+    providers = db.get_llm_providers()
+    for p in providers:
+        if p["id"] == provider_id:
+            llm_manager.register_provider(provider_id, p)
+            break
+    
+    return {"success": True, "provider": provider_id}
+
+# ============================================================================
+# DATABASE / CONVERSATIONS API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/db/conversations")
+async def get_conversations(limit: int = 100, offset: int = 0):
+    """Get all conversations (admin)"""
+    return {"conversations": db.get_all_conversations(limit, offset)}
+
+@app.get("/api/db/conversations/{session_id}")
+async def get_session_conversations(session_id: str, limit: int = 50):
+    """Get conversation history for session"""
+    return {"history": db.get_conversation_history(session_id, limit)}
+
+@app.get("/api/db/sessions")
+async def get_active_sessions():
+    """Get all active sessions"""
+    return {"sessions": db.get_active_sessions()}
+
+@app.get("/api/db/services")
+async def get_services():
+    """Get all registered services"""
+    return {"services": db.get_services()}
+
+@app.post("/api/db/services/{service_id}/check")
+async def check_service(service_id: str):
+    """Check service health and update status"""
+    service = db.get_service(service_id)
+    if not service:
+        raise HTTPException(status_code=404, detail=f"Service '{service_id}' not found")
+    
+    # Check based on service type
+    if service["type"] == "llm":
+        health = await llm_manager.check_service_health(service_id)
+        status = health.get(service_id, {}).get("status", "unknown")
+        error = health.get(service_id, {}).get("error")
+    else:
+        # Simple HTTP check for other services
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(service["url"])
+                status = "healthy" if response.status_code < 400 else "error"
+                error = None if status == "healthy" else f"HTTP {response.status_code}"
+        except Exception as e:
+            status = "offline"
+            error = str(e)
+    
+    db.update_service_status(service_id, status, error)
+    return {"service": service_id, "status": status, "error": error}
+
+# ============================================================================
+# SIMPLIFIED INTERFACE - PREDEFINED OPTIONS PER APP
+# ============================================================================
+
+@app.get("/api/app/{app_type}/options")
+async def get_app_options(app_type: str):
+    """Get predefined options/commands for specific app"""
+    app_data = SkillRegistry.get_app(app_type)
+    if not app_data:
+        raise HTTPException(status_code=404, detail=f"App '{app_type}' not found")
+    
+    return {
+        "app": app_type,
+        "name": app_data["name"],
+        "description": app_data["description"],
+        "options": app_data["skills"],
+        "quick_actions": [s["cmd"] for s in app_data["skills"][:4]]
+    }
+
+@app.get("/api/breadcrumbs")
+async def get_breadcrumbs(app_type: str = "welcome", action: str = None):
+    """Get breadcrumb navigation data"""
+    breadcrumbs = [{"label": "🏠 Home", "cmd": "start", "app": "welcome"}]
+    
+    if app_type != "welcome":
+        app_data = SkillRegistry.get_app(app_type)
+        if app_data:
+            breadcrumbs.append({
+                "label": app_data["name"],
+                "cmd": app_data["skills"][0]["cmd"] if app_data["skills"] else "",
+                "app": app_type
+            })
+    
+    if action:
+        breadcrumbs.append({"label": action, "cmd": "", "app": app_type})
+    
+    return {"breadcrumbs": breadcrumbs, "current_app": app_type}
+
+# ============================================================================
+# MODULAR APPS API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/apps")
+async def get_all_apps():
+    """Get all loaded modular apps"""
+    return {"apps": app_registry.get_apps_summary()}
+
+@app.get("/api/apps/{app_id}")
+async def get_app_details(app_id: str):
+    """Get details for specific app"""
+    app = app_registry.get_app(app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail=f"App not found: {app_id}")
+    return {
+        "id": app.id,
+        "name": app.name,
+        "version": app.version,
+        "description": app.description,
+        "language": app.language,
+        "commands": app.commands,
+        "scripts": app.scripts,
+        "error_handling": app.error_handling,
+        "ui": app.ui,
+        "status": app.status
+    }
+
+@app.post("/api/apps/{app_id}/run/{script_name}")
+async def run_app_script(app_id: str, script_name: str, args: Dict = None):
+    """Run app script"""
+    script_args = args.get("args", []) if args else []
+    result = app_registry.run_script(app_id, script_name, *script_args)
+    return result
+
+@app.post("/api/apps/{app_id}/make/{target}")
+async def run_app_make(app_id: str, target: str, params: Dict = None):
+    """Run Makefile target for app"""
+    kwargs = params or {}
+    result = app_registry.run_make(app_id, target, **kwargs)
+    return result
+
+@app.get("/api/apps/{app_id}/health")
+async def check_app_health(app_id: str):
+    """Check app health"""
+    return app_registry.check_app_health(app_id)
+
+@app.post("/api/apps/{app_id}/reload")
+async def reload_app(app_id: str):
+    """Reload app manifest"""
+    success = app_registry.reload_app(app_id)
+    return {"success": success, "app": app_id}
+
+@app.post("/api/apps/scan")
+async def scan_apps():
+    """Rescan apps folder"""
+    loaded = app_registry.scan_apps()
+    return {"loaded": loaded, "count": len(loaded)}
+
+# ============================================================================
+# LLM CODE EDITING API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/apps/{app_id}/files")
+async def get_app_files(app_id: str):
+    """Get list of files in app for LLM editing"""
+    files = app_registry.get_app_files(app_id)
+    if not files:
+        raise HTTPException(status_code=404, detail=f"App not found: {app_id}")
+    return {"app": app_id, "files": files}
+
+@app.get("/api/apps/{app_id}/files/{file_path:path}")
+async def read_app_file(app_id: str, file_path: str):
+    """Read file content from app"""
+    content = app_registry.read_app_file(app_id, file_path)
+    if content is None:
+        raise HTTPException(status_code=404, detail="File not found")
+    return {"app": app_id, "file": file_path, "content": content}
+
+@app.put("/api/apps/{app_id}/files/{file_path:path}")
+async def write_app_file(app_id: str, file_path: str, data: Dict):
+    """Write file content to app (LLM editing)"""
+    content = data.get("content", "")
+    success = app_registry.write_app_file(app_id, file_path, content)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to write file")
+    return {"success": True, "app": app_id, "file": file_path}
+
+@app.post("/api/apps/{app_id}/fix")
+async def llm_fix_app_code(app_id: str, data: Dict):
+    """Let LLM analyze and fix app code"""
+    file_path = data.get("file")
+    issue = data.get("issue", "")
+    
+    # Read current file
+    content = app_registry.read_app_file(app_id, file_path)
+    if content is None:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Ask LLM to fix
+    prompt = f"""Analyze and fix this code. Issue: {issue}
+
+File: {file_path}
+```
+{content}
+```
+
+Return ONLY the fixed code, no explanations."""
+    
+    response = await llm_manager.chat(prompt, system_prompt="You are a code fixer. Return only fixed code.")
+    
+    if response.error:
+        return {"success": False, "error": response.error}
+    
+    # Write fixed code
+    fixed_content = response.content.strip()
+    if fixed_content.startswith("```"):
+        # Remove markdown code blocks
+        lines = fixed_content.split("\n")
+        fixed_content = "\n".join(lines[1:-1]) if lines[-1] == "```" else "\n".join(lines[1:])
+    
+    success = app_registry.write_app_file(app_id, file_path, fixed_content)
+    
+    return {
+        "success": success,
+        "app": app_id,
+        "file": file_path,
+        "fixed_by": response.model
+    }
+
+# ============================================================================
+# APP LOGS API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/apps/{app_id}/logs")
+async def get_app_logs(app_id: str, lines: int = 50):
+    """Get recent logs for an app"""
+    return app_registry.get_app_logs(app_id, lines)
+
+@app.get("/api/apps/{app_id}/logs/yaml")
+async def get_app_yaml_logs(app_id: str):
+    """Get YAML formatted logs for LLM context"""
+    yaml_logs = app_registry.get_app_yaml_logs(app_id)
+    return {"app": app_id, "yaml_logs": yaml_logs}
+
+@app.get("/api/apps/{app_id}/logs/errors")
+async def get_app_errors(app_id: str, lines: int = 20):
+    """Get recent errors for an app"""
+    errors = app_registry.get_app_errors(app_id, lines)
+    return {"app": app_id, "errors": errors}
+
+@app.get("/api/apps/{app_id}/context")
+async def get_app_context(app_id: str):
+    """Get full app context for LLM debugging/fixing"""
+    return app_registry.get_app_context_for_llm(app_id)
+
+@app.post("/api/apps/{app_id}/debug")
+async def llm_debug_app(app_id: str, data: Dict = None):
+    """Let LLM analyze app logs and suggest fixes"""
+    context = app_registry.get_app_context_for_llm(app_id)
+    
+    if "error" in context:
+        raise HTTPException(status_code=404, detail=context["error"])
+    
+    issue = data.get("issue", "") if data else ""
+    
+    # Build prompt with app context
+    prompt = f"""Analyze this app and its logs. Suggest fixes if there are errors.
+
+App: {context['app_id']} ({context['name']})
+Language: {context['language']}
+Status: {context['status']}
+Last Error: {context.get('last_error', 'None')}
+
+Recent Errors:
+{chr(10).join(context['recent_errors'][-5:]) if context['recent_errors'] else 'No errors'}
+
+Recent Logs:
+{chr(10).join(context['recent_logs'][-10:]) if context['recent_logs'] else 'No logs'}
+
+Issue reported: {issue}
+
+Provide:
+1. Analysis of the problem
+2. Suggested fix (if applicable)
+3. Commands to run to fix it
+"""
+    
+    response = await llm_manager.chat(prompt, system_prompt="You are an app debugger. Analyze logs and suggest fixes.")
+    
+    return {
+        "app": app_id,
+        "analysis": response.content,
+        "model": response.model,
+        "context_used": {
+            "logs_count": len(context['recent_logs']),
+            "errors_count": len(context['recent_errors'])
+        }
+    }
+
+# ============================================================================
+# TEXT2MAKEFILE / MAKEFILE2TEXT API ENDPOINTS
+# ============================================================================
+
+@app.post("/api/text2makefile")
+async def text_to_makefile(data: Dict):
+    """Convert natural language to Makefile command"""
+    text = data.get("text", "")
+    app_id = data.get("app_id")
+    role = data.get("role", "user")
+    
+    if not text:
+        raise HTTPException(status_code=400, detail="Text required")
+    
+    return makefile_converter.text2makefile(text, app_id, role)
+
+@app.post("/api/makefile2text")
+async def makefile_to_text(data: Dict):
+    """Convert Makefile command to natural language"""
+    command = data.get("command", "")
+    app_id = data.get("app_id")
+    
+    if not command:
+        raise HTTPException(status_code=400, detail="Command required")
+    
+    return makefile_converter.makefile2text(command, app_id)
+
+@app.get("/api/apps/{app_id}/makefiles")
+async def get_app_makefiles(app_id: str):
+    """Get all Makefile commands organized by role"""
+    return {
+        "app": app_id,
+        "commands": makefile_converter.get_all_commands(app_id)
+    }
+
+@app.get("/api/apps/{app_id}/makefiles/{role}")
+async def get_app_makefile_by_role(app_id: str, role: str):
+    """Get Makefile commands for specific role (user/admin/system)"""
+    all_commands = makefile_converter.get_all_commands(app_id)
+    
+    if role not in all_commands:
+        raise HTTPException(status_code=404, detail=f"Role '{role}' not found")
+    
+    return {
+        "app": app_id,
+        "role": role,
+        "commands": all_commands[role]
+    }
+
+@app.post("/api/apps/{app_id}/execute")
+async def execute_app_command(app_id: str, data: Dict):
+    """Execute command (text or make) for an app"""
+    text_or_command = data.get("command") or data.get("text", "")
+    is_text = data.get("is_text", True)
+    
+    if not text_or_command:
+        raise HTTPException(status_code=400, detail="Command or text required")
+    
+    # Log to app
+    app_registry.log_app_command(app_id, text_or_command, {"type": "execute"})
+    
+    result = makefile_converter.execute(app_id, text_or_command, is_text)
+    
+    return result
+
+@app.get("/api/apps/{app_id}/suggestions")
+async def get_command_suggestions(app_id: str, role: str = "user"):
+    """Get command suggestions for an app"""
+    suggestions = makefile_converter.get_suggestions(app_id, role)
+    return {"app": app_id, "role": role, "suggestions": suggestions}
+
+# ============================================================================
+# REGISTRY MANAGER API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/registries")
+async def get_all_registries():
+    """Get all configured registries"""
+    return {"registries": registry_manager.get_all_registries()}
+
+@app.post("/api/registries")
+async def add_registry(data: Dict):
+    """Add new external registry"""
+    success = registry_manager.add_registry(data)
+    return {"success": success}
+
+@app.get("/api/registries/{registry_id}")
+async def get_registry(registry_id: str):
+    """Get registry details"""
+    reg = registry_manager.get_registry(registry_id)
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registry not found")
+    return {"registry": vars(reg)}
+
+@app.put("/api/registries/{registry_id}")
+async def update_registry(registry_id: str, data: Dict):
+    """Update registry settings"""
+    success = registry_manager.update_registry(registry_id, data)
+    return {"success": success}
+
+@app.delete("/api/registries/{registry_id}")
+async def delete_registry(registry_id: str):
+    """Remove registry"""
+    success = registry_manager.remove_registry(registry_id)
+    return {"success": success}
+
+@app.post("/api/registries/{registry_id}/sync")
+async def sync_registry(registry_id: str):
+    """Sync apps from registry"""
+    result = await registry_manager.sync_registry(registry_id)
+    return result
+
+@app.post("/api/registries/sync-all")
+async def sync_all_registries():
+    """Sync all enabled registries"""
+    results = {}
+    for reg_id, reg in registry_manager.registries.items():
+        if reg.enabled:
+            results[reg_id] = await registry_manager.sync_registry(reg_id)
+    return {"results": results}
+
+@app.get("/api/external-apps")
+async def get_external_apps(registry: str = None):
+    """Get external apps, optionally filtered by registry"""
+    return {"apps": registry_manager.get_external_apps(registry)}
+
+@app.post("/api/external-apps")
+async def add_external_app(data: Dict):
+    """Add external app to system"""
+    success = registry_manager.add_external_app(data)
+    return {"success": success}
+
+@app.delete("/api/external-apps/{app_id}")
+async def remove_external_app(app_id: str):
+    """Remove external app"""
+    success = registry_manager.remove_external_app(app_id)
+    return {"success": success}
+
+@app.post("/api/external-apps/{app_id}/install")
+async def install_external_app(app_id: str):
+    """Install external app"""
+    return registry_manager.install_external_app(app_id)
+
+@app.post("/api/external-apps/{app_id}/access")
+async def manage_external_app_access(app_id: str, data: Dict):
+    """Grant or revoke access to external app"""
+    role = data.get("role")
+    user = data.get("user")
+    grant = data.get("grant", True)
+    
+    if role:
+        if grant:
+            success = registry_manager.grant_access(app_id, role, is_role=True)
+        else:
+            success = registry_manager.revoke_access(app_id, role, is_role=True)
+    elif user:
+        if grant:
+            success = registry_manager.grant_access(app_id, user, is_role=False)
+        else:
+            success = registry_manager.revoke_access(app_id, user, is_role=False)
+    else:
+        raise HTTPException(status_code=400, detail="Role or user required")
+    
+    return {"success": success}
+
+# ============================================================================
+# UNIFIED APP COMMAND EXECUTION (text2makefile integration)
+# ============================================================================
+
+@app.post("/api/command/execute")
+async def execute_unified_command(data: Dict):
+    """
+    Execute command via text2makefile
+    Unified entry point for all app commands
+    """
+    text = data.get("text", "")
+    app_id = data.get("app_id")
+    role = data.get("role", "user")
+    
+    if not text:
+        raise HTTPException(status_code=400, detail="Text required")
+    
+    # Convert text to makefile command
+    conversion = makefile_converter.text2makefile(text, app_id, role)
+    
+    if not conversion["success"]:
+        return conversion
+    
+    # Execute if app_id provided
+    if app_id:
+        result = makefile_converter.execute(app_id, conversion["command"], is_text=False)
+        result["conversion"] = conversion
+        
+        # Log to app
+        app_registry.log_app_command(app_id, text, result)
+        
+        return result
+    
+    return conversion
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 logger.info("✅ All API endpoints registered")
 logger.info(f"📊 Available commands: {len(VoiceCommandProcessor.INTENTS)}")
+logger.info("🌐 Internet integration endpoints ready")
+logger.info("🤖 LLM management endpoints ready")
+logger.info("⚙️ Configuration endpoints ready")
+logger.info("📦 Modular apps endpoints ready")
 
 if __name__ == "__main__":
-    logger.info("🌐 Starting server on http://0.0.0.0:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    logger.info(f"🌐 Starting server on http://0.0.0.0:{config.server.port}")
+    uvicorn.run(app, host=config.server.host, port=config.server.port)

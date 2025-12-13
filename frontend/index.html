@@ -388,6 +388,610 @@
             color: var(--primary);
         }
         
+        /* ===== APPS DASHBOARD ===== */
+        .apps-dashboard {
+            padding: 20px;
+        }
+        
+        .user-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .user-bar.guest {
+            border-color: var(--warning);
+        }
+        
+        .user-bar button {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        
+        .logout-btn { background: var(--danger); color: white; }
+        .login-btn { background: var(--primary); color: white; }
+        
+        .quick-commands {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .quick-cmd {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        
+        .quick-cmd:hover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        
+        .app-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .app-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        
+        .app-card-header {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .app-icon {
+            font-size: 2rem;
+        }
+        
+        .app-info h3 {
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+        
+        .app-info p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .app-skills {
+            padding: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .skill-btn {
+            padding: 6px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .skill-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .dashboard-footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
+        /* ===== LOGIN VIEW ===== */
+        .login-view {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 40px;
+        }
+        
+        .login-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .login-box h2 {
+            margin-bottom: 16px;
+        }
+        
+        .login-box code {
+            background: var(--bg-input);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .demo-users {
+            margin-top: 24px;
+        }
+        
+        .demo-users h4 {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .user-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .user-item {
+            padding: 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .user-item:hover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .user-item small {
+            color: var(--text-secondary);
+        }
+        
+        /* ===== ROOM/HOME VIEW ===== */
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        
+        .room-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .room-card h4 {
+            margin-bottom: 12px;
+        }
+        
+        .room-stats {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        /* ===== SERVICES/INTERNET VIEW ===== */
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .service-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        
+        .service-icon {
+            font-size: 1.5rem;
+        }
+        
+        .service-name {
+            flex: 1;
+        }
+        
+        .service-status {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            background: var(--bg-input);
+            border-radius: 4px;
+        }
+        
+        .service-status.active {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+        
+        /* ===== METRICS VIEW ===== */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 20px;
+        }
+        
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .metric-name {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .metric-change {
+            color: var(--success);
+            font-size: 0.85rem;
+        }
+        
+        .info-message {
+            padding: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        
+        .system-view {
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .system-view h2 {
+            margin-bottom: 16px;
+        }
+        
+        /* ===== TTS INDICATOR ===== */
+        .tts-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            padding: 8px 16px;
+            background: var(--primary);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .tts-indicator.active {
+            display: block;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        /* ===== COMMAND HISTORY PANEL ===== */
+        .history-panel {
+            border-top: 1px solid var(--border);
+            padding: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .history-header button {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            margin: 2px 0;
+            background: var(--bg-input);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        
+        .history-item:hover {
+            background: var(--primary);
+        }
+        
+        .history-cmd {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .history-app {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+        
+        /* ===== BREADCRUMB / LOCATION ===== */
+        .location-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-input);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        
+        .location-bar .home-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .location-bar .separator {
+            color: var(--text-secondary);
+        }
+        
+        .location-bar .current-location {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .location-bar .back-btn {
+            margin-left: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .location-bar .back-btn:hover {
+            border-color: var(--primary);
+        }
+        
+        /* ===== QUICK ACTIONS PANEL ===== */
+        .quick-actions {
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+        }
+        
+        .quick-actions-header {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+        
+        .quick-action-btn {
+            padding: 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .quick-action-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        /* ===== CONFIG BAR ===== */
+        .config-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 8px;
+            background: var(--bg-input);
+            border-top: 1px solid var(--border);
+        }
+        
+        .config-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .config-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        .config-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        /* ===== CONFIG MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: var(--secondary);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .modal-body {
+            padding: 16px;
+        }
+        
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg-input);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .config-item label {
+            font-size: 0.85rem;
+        }
+        
+        .config-item select,
+        .config-item input {
+            padding: 6px 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+        
+        .service-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-input);
+            border-radius: 8px;
+            margin-bottom: 6px;
+        }
+        
+        .service-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .service-status.healthy { background: var(--success); }
+        .service-status.offline { background: var(--danger); }
+        .service-status.unknown { background: var(--warning); }
+        
+        .service-name {
+            flex: 1;
+            font-size: 0.85rem;
+        }
+        
+        .service-action {
+            padding: 4px 8px;
+            background: var(--primary);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        
         /* ===== CHAT PANEL (20%) ===== */
         .chat-panel {
             flex: 0 0 20%;
@@ -579,6 +1183,12 @@
     <div class="container">
         <!-- APP VIEW (80%) -->
         <div class="app-view">
+            <div class="location-bar" id="location-bar">
+                <button class="home-btn" onclick="sendCommand('start')" title="Strona główna">🏠</button>
+                <span class="separator">›</span>
+                <span class="current-location" id="current-location">Dashboard</span>
+                <button class="back-btn" onclick="history.back()" title="Wstecz">← Wstecz</button>
+            </div>
             <div class="app-header" id="app-header">
                 <div>
                     <h1 id="app-title">👋 Streamware Voice Dashboard</h1>
@@ -609,18 +1219,28 @@ Przykładowe komendy:
             </div>
         </div>
         
-        <!-- CHAT PANEL (20%) -->
+        <!-- CHAT PANEL (20%) - SIMPLIFIED MINIMAL INTERFACE -->
         <div class="chat-panel">
             <div class="chat-header">
                 <div class="logo">🎤 Streamware</div>
-                <div class="status">Połączono</div>
+                <div class="status" id="connection-status">Połączono</div>
             </div>
+            
+            <!-- QUICK ACTIONS - context-aware buttons -->
+            <div class="quick-actions" id="quick-actions">
+                <div class="quick-actions-header">⚡ Szybkie akcje</div>
+                <div class="quick-actions-grid" id="quick-actions-grid">
+                    <!-- Dynamic based on current app -->
+                </div>
+            </div>
+            
             <div class="chat-messages" id="chat-messages">
                 <div class="message assistant">
-                    Cześć! Jestem Twoim asystentem głosowym. Powiedz co chcesz zrobić.
+                    Cześć! Wybierz akcję lub wpisz komendę.
                     <div class="timestamp">Teraz</div>
                 </div>
             </div>
+            
             <div class="chat-input-container">
                 <div class="chat-input-wrapper">
                     <input type="text" class="chat-input" id="chat-input" 
@@ -630,16 +1250,124 @@ Przykładowe komendy:
                     <button class="send-btn" onclick="sendCurrentInput()">➤</button>
                 </div>
             </div>
+            
+            <!-- CONFIG BUTTON -->
+            <div class="config-bar">
+                <button onclick="showConfig()" class="config-btn" title="Ustawienia">⚙️</button>
+                <button onclick="toggleTTS()" class="config-btn" id="tts-btn" title="TTS">🔊</button>
+                <button onclick="showServices()" class="config-btn" title="Usługi">🔌</button>
+                <button onclick="clearHistory()" class="config-btn" title="Wyczyść">🗑️</button>
+            </div>
         </div>
     </div>
 
+    <div id="tts-indicator" class="tts-indicator">🔊 Mówię...</div>
+    
+    <!-- CONFIG MODAL -->
+    <div class="modal-overlay" id="config-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ Ustawienia</h3>
+                <button class="modal-close" onclick="closeModal('config-modal')">×</button>
+            </div>
+            <div class="modal-body" id="config-modal-body">
+                <!-- Dynamic config items -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- SERVICES MODAL -->
+    <div class="modal-overlay" id="services-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔌 Usługi</h3>
+                <button class="modal-close" onclick="closeModal('services-modal')">×</button>
+            </div>
+            <div class="modal-body" id="services-modal-body">
+                <!-- Dynamic service items -->
+            </div>
+        </div>
+    </div>
+    
     <script>
-        // ===== WEBSOCKET CONNECTION =====
+        // ===== STATE & HISTORY =====
         const clientId = 'client_' + Math.random().toString(36).substr(2, 9);
         let ws = null;
         let isListening = false;
         let recognition = null;
+        let currentUser = null;
+        let ttsEnabled = true;
+        let commandHistory = [];
+        let currentView = null;
         
+        // ===== URL ROUTING =====
+        function updateURL(command, appType) {
+            const url = new URL(window.location);
+            if (command) {
+                url.searchParams.set('cmd', command);
+            }
+            if (appType) {
+                url.searchParams.set('app', appType);
+            }
+            url.searchParams.set('t', Date.now());
+            window.history.pushState({ command, appType }, '', url);
+        }
+        
+        function getURLCommand() {
+            const url = new URL(window.location);
+            return url.searchParams.get('cmd');
+        }
+        
+        function handlePopState(event) {
+            if (event.state && event.state.command) {
+                sendCommand(event.state.command, false); // false = don't update URL
+            }
+        }
+        
+        window.addEventListener('popstate', handlePopState);
+        
+        // ===== COMMAND HISTORY =====
+        function addToHistory(command, appType, response) {
+            const entry = {
+                id: Date.now(),
+                command,
+                appType,
+                response: response.substring(0, 100),
+                timestamp: new Date().toISOString()
+            };
+            commandHistory.unshift(entry);
+            if (commandHistory.length > 50) commandHistory.pop();
+            renderCommandHistory();
+            localStorage.setItem('streamware_history', JSON.stringify(commandHistory));
+        }
+        
+        function loadHistory() {
+            const saved = localStorage.getItem('streamware_history');
+            if (saved) {
+                commandHistory = JSON.parse(saved);
+                renderCommandHistory();
+            }
+        }
+        
+        function renderCommandHistory() {
+            const container = document.getElementById('command-history');
+            if (!container) return;
+            
+            container.innerHTML = commandHistory.slice(0, 10).map(entry => `
+                <div class="history-item" onclick="sendCommand('${entry.command}')" title="${entry.response}">
+                    <span class="history-cmd">${entry.command}</span>
+                    <span class="history-app">${entry.appType || 'system'}</span>
+                </div>
+            `).join('');
+        }
+        
+        function clearHistory() {
+            commandHistory = [];
+            localStorage.removeItem('streamware_history');
+            renderCommandHistory();
+        }
+        
+        // ===== WEBSOCKET CONNECTION =====
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${protocol}//${window.location.host}/ws/${clientId}`);
@@ -681,18 +1409,105 @@ Przykładowe komendy:
             console.log('Received:', data);
             
             if (data.type === 'welcome') {
-                // Initial welcome - already shown
+                // Initial welcome - render dashboard
+                if (data.view) {
+                    renderView(data.view);
+                }
             } else if (data.type === 'response') {
                 // Add assistant message
                 addChatMessage(data.response_text, 'assistant');
                 
+                // Speak the response (TTS)
+                if (ttsEnabled && data.response_text) {
+                    speak(data.response_text);
+                }
+                
+                // Update URL and history
+                const appType = data.intent?.app_type || 'system';
+                if (window._lastCommand && window._updateUrl) {
+                    updateURL(window._lastCommand, appType);
+                    addToHistory(window._lastCommand, appType, data.response_text || '');
+                }
+                currentView = data.view;
+                
                 // Update app view
+                if (data.view) {
+                    renderView(data.view);
+                }
+            } else if (data.type === 'login_success') {
+                currentUser = data.user;
+                addChatMessage(`✅ ${data.response_text}`, 'assistant');
+                speak(`Zalogowano jako ${data.user.user}`);
+                if (data.view) {
+                    renderView(data.view);
+                }
+                updateUserStatus();
+            } else if (data.type === 'login_failed') {
+                addChatMessage(`❌ ${data.response_text}`, 'assistant');
+                speak('Błąd logowania');
+            } else if (data.type === 'logout') {
+                currentUser = null;
+                addChatMessage(`👋 ${data.response_text}`, 'assistant');
+                speak('Wylogowano');
+                if (data.view) {
+                    renderView(data.view);
+                }
+                updateUserStatus();
+            } else if (data.type === 'access_denied') {
+                addChatMessage(`🚫 ${data.response_text}`, 'assistant');
+                speak('Brak dostępu');
                 if (data.view) {
                     renderView(data.view);
                 }
             } else if (data.type === 'view_update') {
                 renderView(data.view);
             }
+        }
+        
+        function updateUserStatus() {
+            const statusEl = document.querySelector('.chat-header .status');
+            if (currentUser) {
+                statusEl.textContent = `${currentUser.user}`;
+                statusEl.style.color = 'var(--success)';
+            } else {
+                statusEl.textContent = 'Połączono';
+                statusEl.style.color = 'var(--success)';
+            }
+        }
+        
+        // ===== TEXT-TO-SPEECH (TTS) =====
+        function speak(text) {
+            if (!('speechSynthesis' in window)) {
+                console.warn('TTS not supported');
+                return;
+            }
+            
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'pl-PL';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            
+            // Show TTS indicator
+            const indicator = document.getElementById('tts-indicator');
+            indicator.classList.add('active');
+            
+            utterance.onend = () => {
+                indicator.classList.remove('active');
+            };
+            
+            utterance.onerror = () => {
+                indicator.classList.remove('active');
+            };
+            
+            window.speechSynthesis.speak(utterance);
+        }
+        
+        function toggleTTS() {
+            ttsEnabled = !ttsEnabled;
+            addChatMessage(ttsEnabled ? '🔊 TTS włączony' : '🔇 TTS wyłączony', 'assistant');
         }
         
         function addChatMessage(text, sender) {
@@ -707,7 +1522,7 @@ Przykładowe komendy:
             messagesEl.scrollTop = messagesEl.scrollHeight;
         }
         
-        function sendCommand(text) {
+        function sendCommand(text, updateUrl = true) {
             if (!text.trim()) return;
             
             // Add user message to chat
@@ -723,6 +1538,10 @@ Przykładowe komendy:
             
             // Clear input
             document.getElementById('chat-input').value = '';
+            
+            // Store last command for URL update after response
+            window._lastCommand = text;
+            window._updateUrl = updateUrl;
         }
         
         function sendCurrentInput() {
@@ -759,17 +1578,266 @@ Przykładowe komendy:
             }
             
             // Render content based on view type
-            if (view.type === 'documents') {
+            if (view.type === 'welcome') {
+                contentEl.innerHTML = renderAppsDashboard(view);
+            } else if (view.type === 'documents') {
                 contentEl.innerHTML = renderDocumentsView(view);
             } else if (view.type === 'cameras') {
                 contentEl.innerHTML = renderCamerasView(view);
             } else if (view.type === 'sales') {
                 contentEl.innerHTML = renderSalesView(view);
+            } else if (view.type === 'home') {
+                contentEl.innerHTML = renderHomeView(view);
+            } else if (view.type === 'analytics') {
+                contentEl.innerHTML = renderAnalyticsView(view);
+            } else if (view.type === 'internet') {
+                contentEl.innerHTML = renderInternetView(view);
             } else if (view.type === 'system' && view.view === 'help') {
                 contentEl.innerHTML = renderHelpView(view);
+            } else if (view.type === 'system' && view.view === 'login') {
+                contentEl.innerHTML = renderLoginView(view);
+            } else if (view.type === 'system') {
+                contentEl.innerHTML = renderSystemView(view);
             } else if (view.type === 'empty') {
-                contentEl.innerHTML = renderWelcomeView(view);
+                contentEl.innerHTML = renderAppsDashboard(view);
+            } else {
+                contentEl.innerHTML = renderGenericView(view);
             }
+        }
+        
+        function renderAppsDashboard(view) {
+            let html = '<div class="apps-dashboard">';
+            
+            // User info bar if logged in
+            if (currentUser) {
+                html += `
+                    <div class="user-bar">
+                        <span>👤 ${currentUser.user} (${currentUser.role})</span>
+                        <button onclick="sendCommand('logout')" class="logout-btn">Wyloguj</button>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="user-bar guest">
+                        <span>🔓 Niezalogowany - pełny dostęp demo</span>
+                        <button onclick="sendCommand('login')" class="login-btn">🔐 Zaloguj</button>
+                    </div>
+                `;
+            }
+            
+            // Quick commands
+            html += `
+                <div class="quick-commands">
+                    <button onclick="sendCommand('pomoc')" class="quick-cmd">📋 Pomoc</button>
+                    <button onclick="sendCommand('login')" class="quick-cmd">🔐 Zaloguj</button>
+                    <button onclick="sendCommand('status')" class="quick-cmd">⚙️ Status</button>
+                </div>
+            `;
+            
+            // Apps grid
+            if (view.apps) {
+                html += '<div class="apps-grid">';
+                
+                for (const [appKey, app] of Object.entries(view.apps)) {
+                    html += `
+                        <div class="app-card" style="border-color: ${app.color}">
+                            <div class="app-card-header" style="background: ${app.color}20">
+                                <span class="app-icon">${app.icon}</span>
+                                <div class="app-info">
+                                    <h3>${app.name}</h3>
+                                    <p>${app.description}</p>
+                                </div>
+                            </div>
+                            <div class="app-skills">
+                                ${app.skills.map(skill => `
+                                    <button class="skill-btn" onclick="sendCommand('${skill.cmd}')" title="${skill.desc}">
+                                        ${skill.name}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+            }
+            
+            html += `<div class="dashboard-footer">
+                <p>💡 Kliknij przycisk lub wpisz komendę w chat • ${view.total_skills || 50}+ dostępnych komend</p>
+            </div>`;
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function renderLoginView(view) {
+            return `
+                <div class="login-view">
+                    <div class="login-box">
+                        <h2>🔐 Logowanie do systemu</h2>
+                        <p>Wpisz w chat: <code>login [użytkownik] [hasło]</code></p>
+                        <div class="demo-users">
+                            <h4>Użytkownicy demo:</h4>
+                            <div class="user-list">
+                                <div class="user-item" onclick="sendCommand('login admin admin123')">
+                                    <strong>admin</strong> / admin123<br>
+                                    <small>Pełny dostęp</small>
+                                </div>
+                                <div class="user-item" onclick="sendCommand('login kowalski biuro123')">
+                                    <strong>kowalski</strong> / biuro123<br>
+                                    <small>Biuro (dokumenty, sprzedaż)</small>
+                                </div>
+                                <div class="user-item" onclick="sendCommand('login dozorca ochrona123')">
+                                    <strong>dozorca</strong> / ochrona123<br>
+                                    <small>Ochrona (kamery, smart home)</small>
+                                </div>
+                                <div class="user-item" onclick="sendCommand('login manager manager123')">
+                                    <strong>manager</strong> / manager123<br>
+                                    <small>Manager (biuro + kamery)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderHomeView(view) {
+            let html = '';
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-content">
+                                <div class="stat-value">${stat.value}</div>
+                                <div class="stat-label">${stat.label}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            if (view.rooms) {
+                html += '<div class="rooms-grid">';
+                view.rooms.forEach(room => {
+                    html += `
+                        <div class="room-card">
+                            <h4>${room.room}</h4>
+                            <div class="room-stats">
+                                <span>🌡️ ${room.temperature}°C</span>
+                                <span>💧 ${room.humidity}%</span>
+                                <span>${room.light_on ? '💡' : '🌙'}</span>
+                                <span>${room.motion ? '🚶' : ''}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            return html;
+        }
+        
+        function renderAnalyticsView(view) {
+            let html = '';
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-content">
+                                <div class="stat-value">${stat.value}</div>
+                                <div class="stat-label">${stat.label}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            if (view.metrics) {
+                html += '<div class="metrics-grid">';
+                view.metrics.forEach(m => {
+                    html += `
+                        <div class="metric-card">
+                            <div class="metric-name">${m.name}</div>
+                            <div class="metric-value">${m.value}</div>
+                            <div class="metric-change">${m.change}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            return html;
+        }
+        
+        function renderInternetView(view) {
+            let html = '';
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-content">
+                                <div class="stat-value">${stat.value}</div>
+                                <div class="stat-label">${stat.label}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            if (view.services) {
+                html += '<div class="services-grid">';
+                view.services.forEach(s => {
+                    html += `
+                        <div class="service-card">
+                            <span class="service-icon">${s.icon}</span>
+                            <span class="service-name">${s.name}</span>
+                            <span class="service-status ${s.status === 'active' ? 'active' : ''}">${s.status}</span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            if (view.message) {
+                html += `<div class="info-message">${view.message}</div>`;
+            }
+            return html;
+        }
+        
+        function renderSystemView(view) {
+            return `
+                <div class="system-view">
+                    <h2>${view.title}</h2>
+                    <p>${view.message || ''}</p>
+                </div>
+            `;
+        }
+        
+        function renderGenericView(view) {
+            let html = '';
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-content">
+                                <div class="stat-value">${stat.value}</div>
+                                <div class="stat-label">${stat.label}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            if (view.message) {
+                html += `<div class="info-message">${view.message}</div>`;
+            }
+            return html;
         }
         
         function renderDocumentsView(view) {
@@ -1061,11 +2129,337 @@ Przykładowe komendy:
             }
         }
         
+        // ===== LOCATION BAR UPDATE =====
+        function updateLocationBar(view) {
+            const locationEl = document.getElementById('current-location');
+            if (!locationEl) return;
+            
+            const titles = {
+                'welcome': 'Dashboard',
+                'documents': '📄 Dokumenty',
+                'cameras': '🎥 Monitoring',
+                'sales': '📊 Sprzedaż',
+                'home': '🏠 Smart Home',
+                'analytics': '📈 Analityka',
+                'internet': '🌐 Internet',
+                'system': '⚙️ System'
+            };
+            
+            locationEl.textContent = titles[view?.type] || view?.title || 'Dashboard';
+            
+            // Update quick actions based on current app
+            updateQuickActions(view?.type || 'welcome');
+        }
+        
+        // ===== QUICK ACTIONS - Context-aware commands =====
+        const APP_QUICK_ACTIONS = {
+            'welcome': [
+                {cmd: 'pokaż faktury', label: '📄 Faktury'},
+                {cmd: 'pokaż kamery', label: '🎥 Kamery'},
+                {cmd: 'pokaż sprzedaż', label: '📊 Sprzedaż'},
+                {cmd: 'pogoda', label: '🌤️ Pogoda'}
+            ],
+            'documents': [
+                {cmd: 'pokaż faktury', label: '📄 Faktury'},
+                {cmd: 'zeskanuj fakturę', label: '📷 Skanuj'},
+                {cmd: 'suma faktur', label: '💰 Suma'},
+                {cmd: 'eksportuj do excel', label: '📊 Export'}
+            ],
+            'cameras': [
+                {cmd: 'pokaż kamery', label: '📹 Wszystkie'},
+                {cmd: 'gdzie ruch', label: '🏃 Ruch'},
+                {cmd: 'alerty', label: '⚠️ Alerty'},
+                {cmd: 'parking', label: '🅿️ Parking'}
+            ],
+            'sales': [
+                {cmd: 'pokaż sprzedaż', label: '📊 Dashboard'},
+                {cmd: 'raport', label: '📋 Raport'},
+                {cmd: 'top produkty', label: '🏆 Top'},
+                {cmd: 'prognoza', label: '📈 Prognoza'}
+            ],
+            'home': [
+                {cmd: 'temperatura', label: '🌡️ Temp'},
+                {cmd: 'oświetlenie', label: '💡 Światła'},
+                {cmd: 'alarm', label: '🚨 Alarm'},
+                {cmd: 'energia', label: '⚡ Energia'}
+            ],
+            'analytics': [
+                {cmd: 'analiza', label: '📊 Analiza'},
+                {cmd: 'raport dzienny', label: '📅 Dzienny'},
+                {cmd: 'anomalie', label: '🔍 Anomalie'},
+                {cmd: 'predykcja', label: '🤖 AI'}
+            ],
+            'internet': [
+                {cmd: 'pogoda', label: '🌤️ Pogoda'},
+                {cmd: 'bitcoin', label: '₿ Crypto'},
+                {cmd: 'rss', label: '📰 News'},
+                {cmd: 'integracje', label: '🔌 Status'}
+            ],
+            'system': [
+                {cmd: 'pomoc', label: '❓ Pomoc'},
+                {cmd: 'status', label: '📊 Status'},
+                {cmd: 'login', label: '🔐 Login'},
+                {cmd: 'start', label: '🏠 Home'}
+            ]
+        };
+        
+        function updateQuickActions(appType) {
+            const grid = document.getElementById('quick-actions-grid');
+            if (!grid) return;
+            
+            // First use static actions
+            const actions = APP_QUICK_ACTIONS[appType] || APP_QUICK_ACTIONS['welcome'];
+            grid.innerHTML = actions.map(a => 
+                `<button class="quick-action-btn" onclick="sendCommand('${a.cmd}')">${a.label}</button>`
+            ).join('');
+            
+            // Then try to load from Makefile API
+            loadMakefileCommands(appType);
+        }
+        
+        // ===== LOAD COMMANDS FROM MAKEFILE API =====
+        async function loadMakefileCommands(appType) {
+            // Map view type to app_id
+            const appMap = {
+                'welcome': null,
+                'internet': 'weather',
+                'documents': 'documents',
+                'system': 'registry'
+            };
+            
+            const appId = appMap[appType];
+            if (!appId) return;
+            
+            try {
+                const response = await fetch(`/api/apps/${appId}/makefiles/user`);
+                if (!response.ok) return;
+                
+                const data = await response.json();
+                const commands = data.commands || [];
+                
+                if (commands.length > 0) {
+                    const grid = document.getElementById('quick-actions-grid');
+                    if (!grid) return;
+                    
+                    // Show first 4 commands from Makefile
+                    const makeActions = commands.slice(0, 4).map(c => ({
+                        cmd: c.description || c.target,
+                        label: c.target
+                    }));
+                    
+                    grid.innerHTML = makeActions.map(a => 
+                        `<button class="quick-action-btn" onclick="executeViaText2Makefile('${a.cmd}', '${appId}')">${a.label}</button>`
+                    ).join('');
+                }
+            } catch(e) {
+                console.log('Makefile API not available:', e);
+            }
+        }
+        
+        // ===== EXECUTE VIA TEXT2MAKEFILE =====
+        async function executeViaText2Makefile(text, appId) {
+            addChatMessage(text, 'user');
+            
+            try {
+                const response = await fetch('/api/command/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text, app_id: appId, role: 'user'})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show output
+                    let output = data.output;
+                    if (typeof output === 'object') {
+                        output = JSON.stringify(output, null, 2);
+                    }
+                    addChatMessage(`✅ ${output}`, 'assistant');
+                } else if (data.conversion) {
+                    // Show conversion result
+                    addChatMessage(`🔄 ${data.conversion.command}`, 'assistant');
+                } else {
+                    addChatMessage(`❌ ${data.error || 'Nieznany błąd'}`, 'assistant');
+                }
+            } catch(e) {
+                addChatMessage(`❌ Błąd: ${e.message}`, 'assistant');
+            }
+        }
+        
+        // ===== CONFIG MODAL =====
+        async function showConfig() {
+            const modal = document.getElementById('config-modal');
+            const body = document.getElementById('config-modal-body');
+            
+            body.innerHTML = '<p>Ładowanie...</p>';
+            modal.classList.add('active');
+            
+            try {
+                const response = await fetch('/api/llm/providers');
+                const data = await response.json();
+                
+                let html = `
+                    <div class="config-item">
+                        <label>🤖 LLM Provider</label>
+                        <select id="llm-provider" onchange="changeLLM()">
+                            ${data.providers.map(p => 
+                                `<option value="${p.id}" ${p.is_active ? 'selected' : ''}>${p.name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>🔊 TTS</label>
+                        <select id="tts-setting" onchange="ttsEnabled = this.value === 'on'">
+                            <option value="on" ${ttsEnabled ? 'selected' : ''}>Włączony</option>
+                            <option value="off" ${!ttsEnabled ? 'selected' : ''}>Wyłączony</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>🌐 Język</label>
+                        <select disabled>
+                            <option selected>Polski</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>🎨 Motyw</label>
+                        <select disabled>
+                            <option selected>Ciemny</option>
+                        </select>
+                    </div>
+                `;
+                body.innerHTML = html;
+            } catch(e) {
+                body.innerHTML = '<p style="color: var(--danger);">Błąd ładowania konfiguracji</p>';
+            }
+        }
+        
+        async function changeLLM() {
+            const provider = document.getElementById('llm-provider').value;
+            try {
+                await fetch('/api/llm/active', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({provider})
+                });
+                addChatMessage(`✅ LLM zmieniony na: ${provider}`, 'assistant');
+            } catch(e) {
+                addChatMessage('❌ Błąd zmiany LLM', 'assistant');
+            }
+        }
+        
+        // ===== SERVICES MODAL =====
+        async function showServices() {
+            const modal = document.getElementById('services-modal');
+            const body = document.getElementById('services-modal-body');
+            
+            body.innerHTML = '<p>Ładowanie...</p>';
+            modal.classList.add('active');
+            
+            try {
+                const [servicesRes, llmRes] = await Promise.all([
+                    fetch('/api/db/services'),
+                    fetch('/api/llm/health')
+                ]);
+                
+                const services = await servicesRes.json();
+                const llmHealth = await llmRes.json();
+                
+                let html = '<h4 style="margin-bottom: 10px;">LLM Providers</h4>';
+                
+                for (const [id, status] of Object.entries(llmHealth)) {
+                    const statusClass = status.status === 'healthy' ? 'healthy' : 
+                                       status.status === 'offline' ? 'offline' : 'unknown';
+                    html += `
+                        <div class="service-item">
+                            <div class="service-status ${statusClass}"></div>
+                            <span class="service-name">${id}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary);">${status.status}</span>
+                            <button class="service-action" onclick="testService('${id}')">Test</button>
+                        </div>
+                    `;
+                }
+                
+                html += '<h4 style="margin: 15px 0 10px;">Integracje</h4>';
+                
+                for (const s of services.services || []) {
+                    const statusClass = s.status === 'healthy' ? 'healthy' : 
+                                       s.status === 'offline' ? 'offline' : 'unknown';
+                    html += `
+                        <div class="service-item">
+                            <div class="service-status ${statusClass}"></div>
+                            <span class="service-name">${s.name}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary);">${s.status}</span>
+                            <button class="service-action" onclick="checkService('${s.id}')">Check</button>
+                        </div>
+                    `;
+                }
+                
+                body.innerHTML = html;
+            } catch(e) {
+                body.innerHTML = '<p style="color: var(--danger);">Błąd ładowania usług</p>';
+            }
+        }
+        
+        async function testService(serviceId) {
+            addChatMessage(`🔍 Testuję usługę: ${serviceId}...`, 'assistant');
+            try {
+                const response = await fetch(`/api/llm/health`);
+                const data = await response.json();
+                const status = data[serviceId]?.status || 'unknown';
+                addChatMessage(`${status === 'healthy' ? '✅' : '❌'} ${serviceId}: ${status}`, 'assistant');
+            } catch(e) {
+                addChatMessage(`❌ Błąd testu: ${serviceId}`, 'assistant');
+            }
+        }
+        
+        async function checkService(serviceId) {
+            addChatMessage(`🔍 Sprawdzam usługę: ${serviceId}...`, 'assistant');
+            try {
+                const response = await fetch(`/api/db/services/${serviceId}/check`, {method: 'POST'});
+                const data = await response.json();
+                addChatMessage(`${data.status === 'healthy' ? '✅' : '❌'} ${serviceId}: ${data.status}`, 'assistant');
+            } catch(e) {
+                addChatMessage(`❌ Błąd sprawdzenia: ${serviceId}`, 'assistant');
+            }
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('active');
+            });
+        });
+        
         // ===== INIT =====
         document.addEventListener('DOMContentLoaded', () => {
+            // Load saved history
+            loadHistory();
+            
+            // Connect WebSocket
             connectWebSocket();
             initSpeechRecognition();
+            
+            // Initialize quick actions
+            updateQuickActions('welcome');
+            
+            // Check URL for command on load
+            const urlCmd = getURLCommand();
+            if (urlCmd) {
+                setTimeout(() => sendCommand(urlCmd), 500);
+            }
         });
+        
+        // Update location bar when view changes
+        const originalRenderView = renderView;
+        renderView = function(view) {
+            originalRenderView(view);
+            updateLocationBar(view);
+        };
     </script>
 </body>
 </html>

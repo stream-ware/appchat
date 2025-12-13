@@ -1,0 +1,70 @@
+# ============================================
+# WEATHER APP - Makefile.run (System/Service)
+# For: DevOps, CI/CD, System startup
+# ============================================
+
+.PHONY: help start stop restart status health logs install clean
+
+APP_NAME := weather
+APP_DIR := $(shell pwd)
+PID_FILE := $(APP_DIR)/run/app.pid
+LOG_FILE := $(APP_DIR)/logs/app.log
+
+help:
+	@echo "🔧 Weather App - System Commands (Makefile.run)"
+	@echo "================================================"
+	@echo "  start    - Start the app service"
+	@echo "  stop     - Stop the app service"
+	@echo "  restart  - Restart the app service"
+	@echo "  status   - Check service status"
+	@echo "  health   - Run health check"
+	@echo "  logs     - Show recent logs"
+	@echo "  install  - Install dependencies"
+	@echo "  clean    - Clean temporary files"
+
+start:
+	@mkdir -p $(APP_DIR)/run
+	@echo "Starting $(APP_NAME)..."
+	@echo '{"status": "started", "app": "$(APP_NAME)", "pid": "$$$$"}' > $(PID_FILE)
+	@echo "✅ $(APP_NAME) started"
+
+stop:
+	@if [ -f $(PID_FILE) ]; then \
+		echo "Stopping $(APP_NAME)..."; \
+		rm -f $(PID_FILE); \
+		echo "✅ $(APP_NAME) stopped"; \
+	else \
+		echo "$(APP_NAME) is not running"; \
+	fi
+
+restart: stop start
+
+status:
+	@if [ -f $(PID_FILE) ]; then \
+		echo '{"status": "running", "app": "$(APP_NAME)"}'; \
+	else \
+		echo '{"status": "stopped", "app": "$(APP_NAME)"}'; \
+	fi
+
+health:
+	@curl -s "https://api.open-meteo.com/v1/forecast?latitude=52.23&longitude=21.01&current_weather=true" > /dev/null 2>&1 && \
+		echo '{"status": "healthy", "api": "open-meteo"}' || \
+		echo '{"status": "unhealthy", "error": "API unavailable"}'
+
+logs:
+	@if [ -f $(LOG_FILE) ]; then \
+		tail -20 $(LOG_FILE); \
+	else \
+		echo "No logs available"; \
+	fi
+
+install:
+	@echo "Installing dependencies..."
+	@pip install httpx python-dotenv -q
+	@echo "✅ Dependencies installed"
+
+clean:
+	@rm -rf $(APP_DIR)/run/*.pid
+	@rm -rf $(APP_DIR)/__pycache__
+	@rm -rf $(APP_DIR)/scripts/__pycache__
+	@echo "✅ Cleaned"

@@ -1,0 +1,85 @@
+# ============================================
+# REGISTRY MANAGER - Makefile.admin
+# For: Admins - Full registry management
+# ============================================
+
+.PHONY: help list add remove sync enable disable grant-access revoke-access apps install
+
+APP_DIR := $(shell pwd)
+API_URL ?= http://localhost:8002
+
+# @text list: "Pokaż wszystkie rejestry"
+# @text add: "Dodaj nowy rejestr"
+# @text remove: "Usuń rejestr"
+# @text sync: "Synchronizuj rejestr"
+# @text enable: "Włącz rejestr"
+# @text disable: "Wyłącz rejestr"
+# @text apps: "Pokaż zewnętrzne aplikacje"
+# @text install: "Zainstaluj zewnętrzną aplikację"
+# @text grant-access: "Nadaj dostęp do aplikacji"
+# @text revoke-access: "Usuń dostęp do aplikacji"
+
+help:
+	@echo "📦 Registry Manager - Admin Commands"
+	@echo "====================================="
+	@echo ""
+	@echo "Registry Management:"
+	@echo "  list                    - List all registries"
+	@echo "  add ID=x NAME=x TYPE=x URL=x - Add registry"
+	@echo "  remove ID=x             - Remove registry"
+	@echo "  sync ID=x               - Sync registry"
+	@echo "  enable ID=x             - Enable registry"
+	@echo "  disable ID=x            - Disable registry"
+	@echo ""
+	@echo "External Apps:"
+	@echo "  apps                    - List external apps"
+	@echo "  apps REGISTRY=x         - List apps from registry"
+	@echo "  install APP=x           - Install external app"
+	@echo ""
+	@echo "Access Control:"
+	@echo "  grant-access APP=x ROLE=x  - Grant role access"
+	@echo "  revoke-access APP=x ROLE=x - Revoke role access"
+
+list:
+	@curl -s $(API_URL)/api/registries | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d, indent=2))"
+
+add:
+	@curl -s -X POST $(API_URL)/api/registries \
+		-H "Content-Type: application/json" \
+		-d '{"id": "$(ID)", "name": "$(NAME)", "type": "$(TYPE)", "url": "$(URL)"}'
+
+remove:
+	@curl -s -X DELETE $(API_URL)/api/registries/$(ID)
+
+sync:
+	@curl -s -X POST $(API_URL)/api/registries/$(ID)/sync
+
+enable:
+	@curl -s -X PUT $(API_URL)/api/registries/$(ID) \
+		-H "Content-Type: application/json" \
+		-d '{"enabled": true}'
+
+disable:
+	@curl -s -X PUT $(API_URL)/api/registries/$(ID) \
+		-H "Content-Type: application/json" \
+		-d '{"enabled": false}'
+
+apps:
+ifdef REGISTRY
+	@curl -s "$(API_URL)/api/external-apps?registry=$(REGISTRY)"
+else
+	@curl -s $(API_URL)/api/external-apps
+endif
+
+install:
+	@curl -s -X POST $(API_URL)/api/external-apps/$(APP)/install
+
+grant-access:
+	@curl -s -X POST $(API_URL)/api/external-apps/$(APP)/access \
+		-H "Content-Type: application/json" \
+		-d '{"role": "$(ROLE)", "grant": true}'
+
+revoke-access:
+	@curl -s -X POST $(API_URL)/api/external-apps/$(APP)/access \
+		-H "Content-Type: application/json" \
+		-d '{"role": "$(ROLE)", "grant": false}'

@@ -1,0 +1,25 @@
+# ============================================
+# REGISTRY MANAGER - Makefile.run
+# For: System/DevOps
+# ============================================
+
+.PHONY: help health sync-all status
+
+API_URL ?= http://localhost:8002
+
+help:
+	@echo "📦 Registry Manager - System Commands"
+	@echo "======================================"
+	@echo ""
+	@echo "  health    - Check registry manager health"
+	@echo "  sync-all  - Sync all enabled registries"
+	@echo "  status    - Show system status"
+
+health:
+	@curl -s $(API_URL)/api/registries > /dev/null && echo '{"status": "healthy"}' || echo '{"status": "unhealthy"}'
+
+sync-all:
+	@curl -s -X POST $(API_URL)/api/registries/sync-all
+
+status:
+	@echo '{"app": "registry", "status": "running"}'

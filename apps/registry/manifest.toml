@@ -1,0 +1,49 @@
+# Registry Manager App Manifest
+# Manages internal and external app registries
+
+[app]
+id = "registry"
+name = "📦 Registry Manager"
+version = "1.0.0"
+description = "Manage app registries, external apps, and user access"
+language = "python"
+author = "Streamware"
+
+[app.permissions]
+required = ["admin"]
+optional = []
+
+[service]
+type = "internal"
+health_check = "/api/registries"
+
+[commands]
+"rejestry" = ["system", "registries"]
+"registries" = ["system", "registries"]
+"lista rejestrów" = ["system", "registries"]
+"dodaj rejestr" = ["system", "add_registry"]
+"usuń rejestr" = ["system", "remove_registry"]
+"synchronizuj" = ["system", "sync_registry"]
+"zewnętrzne aplikacje" = ["system", "external_apps"]
+"zainstaluj aplikację" = ["system", "install_app"]
+"nadaj dostęp" = ["system", "grant_access"]
+"usuń dostęp" = ["system", "revoke_access"]
+
+[commands.keywords]
+registry = ["rejestr", "registry", "aplikacje", "zewnętrzne", "docker", "ollama"]
+
+[error_handling]
+on_no_registries = "Brak skonfigurowanych rejestrów."
+on_sync_error = "Błąd synchronizacji rejestru."
+fallback_response = "Wystąpił błąd podczas operacji na rejestrze."
+
+[scripts]
+list_registries = "scripts/list_registries.py"
+sync_registry = "scripts/sync_registry.py"
+manage_access = "scripts/manage_access.py"
+
+[ui]
+icon = "📦"
+color = "#8b5cf6"
+dashboard_widget = true
+admin_only = true

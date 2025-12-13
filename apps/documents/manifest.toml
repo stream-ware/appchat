@@ -1,0 +1,45 @@
+# Documents App Manifest
+# Streamware Modular App System
+
+[app]
+id = "documents"
+name = "📄 Dokumenty"
+version = "1.0.0"
+description = "Invoice and document management system"
+language = "python"
+author = "Streamware"
+
+[app.permissions]
+required = ["storage"]
+optional = ["ocr", "export"]
+
+[service]
+type = "internal"
+health_check = "/api/documents/health"
+
+[commands]
+"pokaż faktury" = ["documents", "show_all"]
+"faktury" = ["documents", "show_all"]
+"zeskanuj fakturę" = ["documents", "scan"]
+"suma faktur" = ["documents", "sum"]
+"faktury do zapłaty" = ["documents", "pending"]
+"eksportuj do excel" = ["documents", "export"]
+"archiwum" = ["documents", "archive"]
+
+[commands.keywords]
+documents = ["faktura", "dokument", "umowa", "skan", "excel", "pdf"]
+
+[error_handling]
+on_no_data = "Brak dokumentów w systemie."
+on_scan_error = "Błąd skanowania dokumentu."
+fallback_response = "Nie mogę załadować dokumentów."
+
+[scripts]
+list_documents = "scripts/list_documents.py"
+scan_document = "scripts/scan_document.py"
+export_excel = "scripts/export_excel.py"
+
+[ui]
+icon = "📄"
+color = "#10b981"
+dashboard_widget = true

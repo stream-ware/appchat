@@ -18,6 +18,9 @@ from backend.main import (
     Document,
     CameraFeed,
     SalesData,
+    UserManager,
+    SkillRegistry,
+    User,
 )
 
 
@@ -183,14 +186,15 @@ class TestViewGenerator:
         assert view["type"] == "system"
         assert view["view"] == "help"
         assert "commands" in view
-        assert len(view["commands"]) == 6  # 6 categories: documents, cameras, sales, home, analytics, system
+        assert len(view["commands"]) == 7  # 7 categories: documents, cameras, sales, home, analytics, internet, system
     
     def test_generate_empty_view(self):
-        """Test empty/welcome view generation"""
+        """Test empty/welcome view generation - now returns welcome dashboard"""
         view = ViewGenerator.generate("empty", "")
         
-        assert view["type"] == "empty"
-        assert view["view"] == "welcome"
+        assert view["type"] == "welcome"
+        assert view["view"] == "dashboard"
+        assert "apps" in view
 
 
 class TestResponseGenerator:
@@ -279,6 +283,282 @@ class TestCameraModel:
         assert cam.id == "cam_1"
         assert cam.status == "online"
         assert len(cam.alerts) == 1
+
+
+class TestUserManager:
+    """Tests for UserManager authentication and access control"""
+    
+    def test_authenticate_valid_user(self):
+        """Test authentication with valid credentials"""
+        um = UserManager()
+        user = um.authenticate("admin", "admin123")
+        
+        assert user is not None
+        assert user.username == "admin"
+        assert user.role == "admin"
+    
+    def test_authenticate_invalid_password(self):
+        """Test authentication with invalid password"""
+        um = UserManager()
+        user = um.authenticate("admin", "wrongpassword")
+        
+        assert user is None
+    
+    def test_authenticate_invalid_user(self):
+        """Test authentication with non-existent user"""
+        um = UserManager()
+        user = um.authenticate("nonexistent", "password")
+        
+        assert user is None
+    
+    def test_login_success(self):
+        """Test successful login"""
+        um = UserManager()
+        result = um.login("session_123", "kowalski", "biuro123")
+        
+        assert result["success"] == True
+        assert result["user"] == "Jan Kowalski"
+        assert result["role"] == "Pracownik biurowy"
+    
+    def test_login_failure(self):
+        """Test failed login"""
+        um = UserManager()
+        result = um.login("session_123", "admin", "wrongpassword")
+        
+        assert result["success"] == False
+        assert "error" in result
+    
+    def test_logout(self):
+        """Test logout"""
+        um = UserManager()
+        um.login("session_123", "admin", "admin123")
+        
+        assert um.get_user("session_123") is not None
+        
+        result = um.logout("session_123")
+        
+        assert result == True
+        assert um.get_user("session_123") is None
+    
+    def test_has_permission_admin(self):
+        """Test admin has all permissions"""
+        um = UserManager()
+        um.login("session_admin", "admin", "admin123")
+        
+        assert um.has_permission("session_admin", "documents") == True
+        assert um.has_permission("session_admin", "cameras") == True
+        assert um.has_permission("session_admin", "sales") == True
+        assert um.has_permission("session_admin", "home") == True
+    
+    def test_has_permission_office_user(self):
+        """Test office user has limited permissions"""
+        um = UserManager()
+        um.login("session_office", "kowalski", "biuro123")
+        
+        assert um.has_permission("session_office", "documents") == True
+        assert um.has_permission("session_office", "sales") == True
+        assert um.has_permission("session_office", "cameras") == False
+        assert um.has_permission("session_office", "home") == False
+    
+    def test_has_permission_security_user(self):
+        """Test security user has camera/home permissions"""
+        um = UserManager()
+        um.login("session_security", "dozorca", "ochrona123")
+        
+        assert um.has_permission("session_security", "cameras") == True
+        assert um.has_permission("session_security", "home") == True
+        assert um.has_permission("session_security", "documents") == False
+        assert um.has_permission("session_security", "sales") == False
+    
+    def test_get_allowed_apps(self):
+        """Test getting allowed apps for user"""
+        um = UserManager()
+        um.login("session_test", "kowalski", "biuro123")
+        
+        apps = um.get_allowed_apps("session_test")
+        
+        assert "documents" in apps
+        assert "sales" in apps
+        assert "cameras" not in apps
+    
+    def test_get_users_list(self):
+        """Test getting list of all users"""
+        um = UserManager()
+        users = um.get_users_list()
+        
+        assert len(users) == 5  # admin, kowalski, dozorca, manager, gosc
+        usernames = [u["username"] for u in users]
+        assert "admin" in usernames
+        assert "kowalski" in usernames
+        assert "dozorca" in usernames
+
+
+class TestSkillRegistry:
+    """Tests for SkillRegistry"""
+    
+    def test_get_all_apps(self):
+        """Test getting all registered apps"""
+        apps = SkillRegistry.get_all_apps()
+        
+        assert "documents" in apps
+        assert "cameras" in apps
+        assert "sales" in apps
+        assert "home" in apps
+        assert "analytics" in apps
+        assert "internet" in apps
+        assert "system" in apps
+    
+    def test_get_apps_for_user_admin(self):
+        """Test getting apps for admin (all permissions)"""
+        apps = SkillRegistry.get_apps_for_user(["*"])
+        
+        assert len(apps) == 7  # All apps
+    
+    def test_get_apps_for_user_limited(self):
+        """Test getting apps for limited user"""
+        apps = SkillRegistry.get_apps_for_user(["documents", "sales"])
+        
+        assert len(apps) == 2
+        assert "documents" in apps
+        assert "sales" in apps
+        assert "cameras" not in apps
+    
+    def test_get_app(self):
+        """Test getting single app"""
+        app = SkillRegistry.get_app("documents")
+        
+        assert app is not None
+        assert app["name"] == "📄 Dokumenty"
+        assert "skills" in app
+        assert len(app["skills"]) > 0
+    
+    def test_get_all_commands(self):
+        """Test getting all commands as flat list"""
+        commands = SkillRegistry.get_all_commands()
+        
+        assert len(commands) > 50  # Should have 50+ commands
+        
+        # Check command structure
+        cmd = commands[0]
+        assert "app" in cmd
+        assert "command" in cmd
+        assert "name" in cmd
+        assert "description" in cmd
+    
+    def test_app_has_skills(self):
+        """Test each app has skills defined"""
+        apps = SkillRegistry.get_all_apps()
+        
+        for app_key, app in apps.items():
+            assert "skills" in app
+            assert len(app["skills"]) > 0
+            
+            # Each skill should have cmd, name, desc
+            for skill in app["skills"]:
+                assert "cmd" in skill
+                assert "name" in skill
+                assert "desc" in skill
+
+
+class TestInternetCommands:
+    """Tests for internet integration commands"""
+    
+    def test_recognize_weather_command(self):
+        """Test recognition of weather commands"""
+        commands = ["pogoda", "weather", "pogoda warszawa"]
+        
+        for cmd in commands:
+            result = VoiceCommandProcessor.process(cmd)
+            assert result["recognized"] == True
+            assert result["app_type"] == "internet"
+    
+    def test_recognize_crypto_command(self):
+        """Test recognition of crypto commands"""
+        commands = ["bitcoin", "crypto", "kryptowaluty"]
+        
+        for cmd in commands:
+            result = VoiceCommandProcessor.process(cmd)
+            assert result["recognized"] == True
+            assert result["app_type"] == "internet"
+    
+    def test_recognize_rss_command(self):
+        """Test recognition of RSS commands"""
+        result = VoiceCommandProcessor.process("rss")
+        
+        assert result["recognized"] == True
+        assert result["app_type"] == "internet"
+        assert result["action"] == "rss"
+    
+    def test_recognize_integrations_command(self):
+        """Test recognition of integrations status command"""
+        result = VoiceCommandProcessor.process("integracje")
+        
+        assert result["recognized"] == True
+        assert result["app_type"] == "internet"
+        assert result["action"] == "integrations"
+
+
+class TestSystemCommands:
+    """Tests for system commands including login/logout"""
+    
+    def test_recognize_login_command(self):
+        """Test recognition of login command"""
+        result = VoiceCommandProcessor.process("login")
+        
+        assert result["recognized"] == True
+        assert result["app_type"] == "system"
+        assert result["action"] == "login"
+    
+    def test_recognize_logout_command(self):
+        """Test recognition of logout command"""
+        result = VoiceCommandProcessor.process("logout")
+        
+        assert result["recognized"] == True
+        assert result["app_type"] == "system"
+        assert result["action"] == "logout"
+    
+    def test_recognize_welcome_command(self):
+        """Test recognition of welcome/start command"""
+        commands = ["start", "aplikacje"]
+        
+        for cmd in commands:
+            result = VoiceCommandProcessor.process(cmd)
+            assert result["recognized"] == True
+            assert result["app_type"] == "system"
+            assert result["action"] == "welcome"
+
+
+class TestWelcomeView:
+    """Tests for welcome dashboard view"""
+    
+    def test_generate_welcome_view(self):
+        """Test generating welcome view with all apps"""
+        view = ViewGenerator._generate_welcome_view()
+        
+        assert view["type"] == "welcome"
+        assert view["view"] == "dashboard"
+        assert "apps" in view
+        assert "total_skills" in view
+        assert view["total_skills"] > 50
+    
+    def test_generate_welcome_view_filtered(self):
+        """Test generating welcome view with filtered permissions"""
+        view = ViewGenerator._generate_welcome_view(["documents", "sales"])
+        
+        assert view["type"] == "welcome"
+        assert "apps" in view
+        assert len(view["apps"]) == 2
+        assert "documents" in view["apps"]
+        assert "sales" in view["apps"]
+        assert "cameras" not in view["apps"]
+    
+    def test_generate_login_view(self):
+        """Test generating login view"""
+        view = ViewGenerator.generate("system", "login")
+        
+        assert view["type"] == "system"
+        assert view["view"] == "login"
+        assert "users" in view
 
 
 if __name__ == "__main__":

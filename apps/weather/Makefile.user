@@ -1,0 +1,53 @@
+# ============================================
+# WEATHER APP - Makefile.user (Daily Use)
+# For: End users, daily operations
+# ============================================
+
+.PHONY: help pogoda weather forecast city temp
+
+APP_NAME := weather
+SCRIPTS := $(shell pwd)/scripts
+DEFAULT_CITY ?= Warsaw
+
+# ===========================================
+# TEXT DESCRIPTIONS (for text2makefile)
+# ===========================================
+# @text pogoda: "Pokaż aktualną pogodę"
+# @text weather: "Show current weather"
+# @text forecast: "Pokaż prognozę na kilka dni"
+# @text city: "Sprawdź pogodę dla miasta"
+# @text temp: "Pokaż tylko temperaturę"
+# ===========================================
+
+help:
+	@echo "🌤️ Weather App - User Commands (Makefile.user)"
+	@echo "==============================================="
+	@echo "  pogoda           - Pokaż aktualną pogodę (Warsaw)"
+	@echo "  weather          - Show current weather (Warsaw)"
+	@echo "  forecast DAYS=3  - Show forecast for N days"
+	@echo "  city CITY=Krakow - Weather for specific city"
+	@echo "  temp             - Show temperature only"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make -f Makefile.user pogoda"
+	@echo "  make -f Makefile.user city CITY=Gdansk"
+
+pogoda:
+	@python3 $(SCRIPTS)/get_weather.py $(DEFAULT_CITY)
+
+weather: pogoda
+
+forecast:
+	@python3 $(SCRIPTS)/get_weather.py $(DEFAULT_CITY) --forecast $(DAYS)
+
+city:
+	@python3 $(SCRIPTS)/get_weather.py $(CITY)
+
+temp:
+	@python3 $(SCRIPTS)/get_weather.py $(DEFAULT_CITY) | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'{d.get(\"temperature\", \"?\")}°C')"
+
+# Aliases for natural language
+sprawdz-pogode: pogoda
+jaka-pogoda: pogoda
+temperatura: temp
+prognoza: forecast

@@ -594,11 +594,119 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
             <h1>Asystent głosowy dla przemysłu</h1>
             <p>Mów zamiast klikać. Ręce zostają przy pracy. Voice control dla warsztatów, magazynów i produkcji.</p>
             <div class="hero-buttons">
-                <a href="#contact" class="btn btn-secondary">Zamów demo</a>
-                <a href="#pricing" class="btn btn-outline" style="color: white; border-color: white;">Zobacz cennik</a>
+                <a href="#demo" class="btn btn-secondary">🎮 Przetestuj teraz</a>
+                <a href="#contact" class="btn btn-outline" style="color: white; border-color: white;">Zamów demo</a>
             </div>
         </div>
     </section>
+
+    <!-- DEMO SECTION -->
+    <section id="demo" class="demo-section" style="padding: 60px 0; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+        <div class="container">
+            <div class="section-title" style="color: white;">
+                <h2>🎮 Przetestuj system online</h2>
+                <p style="color: #94a3b8;">Wypróbuj komendy głosowe bez instalacji. 94 dostępne komendy.</p>
+            </div>
+            
+            <div class="demo-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px;">
+                <!-- Demo Commands -->
+                <div class="demo-commands" style="background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155;">
+                    <h3 style="color: white; margin-bottom: 20px;">📋 Przykładowe komendy</h3>
+                    <div class="command-grid" style="display: grid; gap: 10px;">
+                        <button class="demo-cmd" onclick="testCommand('pokaż faktury')" style="padding: 12px; background: #334155; border: none; border-radius: 8px; color: white; cursor: pointer; text-align: left;">📄 pokaż faktury</button>
+                        <button class="demo-cmd" onclick="testCommand('pokaż kamery')" style="padding: 12px; background: #334155; border: none; border-radius: 8px; color: white; cursor: pointer; text-align: left;">🎥 pokaż kamery</button>
+                        <button class="demo-cmd" onclick="testCommand('pogoda')" style="padding: 12px; background: #334155; border: none; border-radius: 8px; color: white; cursor: pointer; text-align: left;">🌤️ pogoda</button>
+                        <button class="demo-cmd" onclick="testCommand('bitcoin')" style="padding: 12px; background: #334155; border: none; border-radius: 8px; color: white; cursor: pointer; text-align: left;">₿ bitcoin</button>
+                        <button class="demo-cmd" onclick="testCommand('temperatura')" style="padding: 12px; background: #334155; border: none; border-radius: 8px; color: white; cursor: pointer; text-align: left;">🌡️ temperatura</button>
+                        <button class="demo-cmd" onclick="testCommand('pomoc')" style="padding: 12px; background: #334155; border: none; border-radius: 8px; color: white; cursor: pointer; text-align: left;">❓ pomoc</button>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <input type="text" id="demo-input" placeholder="Wpisz własną komendę..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white;">
+                        <button onclick="testCustomCommand()" style="margin-top: 10px; width: 100%; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: 600;">🎤 Wykonaj komendę</button>
+                    </div>
+                </div>
+                
+                <!-- Demo Response -->
+                <div class="demo-response" style="background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155;">
+                    <h3 style="color: white; margin-bottom: 20px;">📊 Odpowiedź systemu</h3>
+                    <div id="demo-result" style="min-height: 200px; background: #0f172a; border-radius: 8px; padding: 16px; color: #94a3b8;">
+                        <p>Kliknij komendę lub wpisz własną, aby zobaczyć odpowiedź.</p>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <a href="../frontend/index.html" target="_blank" class="btn btn-primary" style="flex: 1; text-align: center;">🚀 Otwórz pełne demo</a>
+                        <button onclick="speakResponse()" class="btn btn-outline" style="flex: 1;">🔊 Odczytaj głosem</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <p style="color: #64748b;">Pełna wersja demo: <a href="../frontend/index.html" style="color: var(--primary);">http://localhost:8002</a></p>
+            </div>
+        </div>
+    </section>
+
+    <script>
+    let lastResponse = '';
+    
+    async function testCommand(cmd) {
+        const resultEl = document.getElementById('demo-result');
+        resultEl.innerHTML = '<p style="color: #3b82f6;">⏳ Przetwarzam...</p>';
+        
+        try {
+            const response = await fetch('../api/command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({text: cmd})
+            });
+            const data = await response.json();
+            
+            lastResponse = data.response || 'OK';
+            
+            resultEl.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <span style="color: #10b981;">✅ Komenda:</span>
+                    <span style="color: white;">${cmd}</span>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <span style="color: #3b82f6;">📱 Aplikacja:</span>
+                    <span style="color: white;">${data.intent?.app_type || 'system'}</span>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <span style="color: #f59e0b;">🎯 Akcja:</span>
+                    <span style="color: white;">${data.intent?.action || 'unknown'}</span>
+                </div>
+                <div style="padding: 12px; background: #1e293b; border-radius: 8px; margin-top: 10px;">
+                    <span style="color: #94a3b8;">💬 Odpowiedź:</span><br>
+                    <span style="color: white;">${lastResponse}</span>
+                </div>
+            `;
+        } catch(e) {
+            resultEl.innerHTML = `<p style="color: #ef4444;">❌ Błąd połączenia z API. Uruchom serwer: <code>make dev</code></p>`;
+        }
+    }
+    
+    function testCustomCommand() {
+        const input = document.getElementById('demo-input');
+        if (input.value.trim()) {
+            testCommand(input.value.trim());
+            input.value = '';
+        }
+    }
+    
+    function speakResponse() {
+        if (lastResponse && 'speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(lastResponse);
+            utterance.lang = 'pl-PL';
+            speechSynthesis.speak(utterance);
+        }
+    }
+    
+    document.getElementById('demo-input')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') testCustomCommand();
+    });
+    </script>
 
     <?php if ($message): ?>
     <div class="container" style="padding-top: 20px;">

@@ -1,0 +1,48 @@
+# Weather App Manifest
+# Streamware Modular App System
+
+[app]
+id = "weather"
+name = "🌤️ Pogoda"
+version = "1.0.0"
+description = "Real-time weather data from Open-Meteo API"
+language = "python"
+author = "Streamware"
+
+[app.permissions]
+required = ["internet"]
+optional = ["notifications"]
+
+[service]
+type = "api"
+url = "https://api.open-meteo.com/v1/forecast"
+health_check = "/api/weather/Warsaw"
+timeout_seconds = 10
+retry_count = 3
+
+[commands]
+# Pattern = [app_type, action]
+"pogoda" = ["internet", "weather"]
+"weather" = ["internet", "weather"]
+"pogoda warszawa" = ["internet", "weather_warsaw"]
+"pogoda kraków" = ["internet", "weather_krakow"]
+"prognoza" = ["internet", "weather_forecast"]
+
+[commands.keywords]
+weather = ["pogoda", "weather", "temperatura", "forecast", "prognoza"]
+
+[error_handling]
+on_timeout = "Serwis pogodowy nie odpowiada. Spróbuj ponownie za chwilę."
+on_no_data = "Brak danych pogodowych dla tego miasta."
+on_api_error = "Błąd API pogodowego. Sprawdź połączenie internetowe."
+fallback_response = "Nie mogę pobrać danych pogodowych. Status usługi: {status}"
+
+[scripts]
+get_weather = "scripts/get_weather.py"
+get_forecast = "scripts/get_forecast.py"
+check_health = "scripts/health_check.sh"
+
+[ui]
+icon = "🌤️"
+color = "#3b82f6"
+dashboard_widget = true
