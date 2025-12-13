@@ -1,13 +1,27 @@
 """
 Streamware Language Manager
 Multi-language support for text, TTS, and STT with runtime switching
+Data loaded from: data/languages.json
 """
 
+import json
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
 logger = logging.getLogger("streamware.language")
+
+# Load language config from external JSON
+DATA_DIR = Path(__file__).parent.parent / "data"
+LANGUAGES_FILE = DATA_DIR / "languages.json"
+
+def _load_languages_config() -> Dict:
+    """Load languages configuration from JSON"""
+    if LANGUAGES_FILE.exists():
+        with open(LANGUAGES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"languages": {}, "translations": {}}
 
 
 @dataclass
@@ -16,78 +30,67 @@ class LanguageConfig:
     code: str  # ISO 639-1 code (pl, en, de, etc.)
     name: str
     native_name: str
-    tts_voice: str  # Voice ID for TTS
-    stt_model: str  # Model for STT
+    icon: str  # Flag emoji
+    tts_code: str  # TTS language code
+    stt_code: str  # STT language code
+    llm_locale: str  # LLM locale
+    date_format: str = "DD.MM.YYYY"
+    time_format: str = "HH:mm"
+    currency: str = "EUR"
     enabled: bool = True
+    
+    @classmethod
+    def from_dict(cls, code: str, data: Dict) -> "LanguageConfig":
+        return cls(
+            code=code,
+            name=data.get("name", code),
+            native_name=data.get("native_name", code),
+            icon=data.get("icon", "🌐"),
+            tts_code=data.get("tts_code", f"{code}-{code.upper()}"),
+            stt_code=data.get("stt_code", f"{code}-{code.upper()}"),
+            llm_locale=data.get("llm_locale", code),
+            date_format=data.get("date_format", "DD.MM.YYYY"),
+            time_format=data.get("time_format", "HH:mm"),
+            currency=data.get("currency", "EUR"),
+            enabled=data.get("enabled", True)
+        )
 
 
 class LanguageManager:
     """
     Manages multi-language support with runtime switching
-    Supports: text translations, TTS voices, STT models
+    Supports: text translations, TTS voices, STT models, LLM locales
+    Data loaded from: data/languages.json
     """
     
-    # Supported languages with TTS/STT config
-    LANGUAGES = {
-        "pl": LanguageConfig(
-            code="pl",
-            name="Polish",
-            native_name="Polski",
-            tts_voice="pl-PL-Standard-A",
-            stt_model="pl-PL",
-            enabled=True
-        ),
-        "en": LanguageConfig(
-            code="en",
-            name="English",
-            native_name="English",
-            tts_voice="en-US-Standard-A",
-            stt_model="en-US",
-            enabled=True
-        ),
-        "de": LanguageConfig(
-            code="de",
-            name="German",
-            native_name="Deutsch",
-            tts_voice="de-DE-Standard-A",
-            stt_model="de-DE",
-            enabled=True
-        ),
-        "fr": LanguageConfig(
-            code="fr",
-            name="French",
-            native_name="Français",
-            tts_voice="fr-FR-Standard-A",
-            stt_model="fr-FR",
-            enabled=True
-        ),
-        "es": LanguageConfig(
-            code="es",
-            name="Spanish",
-            native_name="Español",
-            tts_voice="es-ES-Standard-A",
-            stt_model="es-ES",
-            enabled=True
-        ),
-        "uk": LanguageConfig(
-            code="uk",
-            name="Ukrainian",
-            native_name="Українська",
-            tts_voice="uk-UA-Standard-A",
-            stt_model="uk-UA",
-            enabled=True
-        ),
-        "ru": LanguageConfig(
-            code="ru",
-            name="Russian",
-            native_name="Русский",
-            tts_voice="ru-RU-Standard-A",
-            stt_model="ru-RU",
-            enabled=True
-        ),
-    }
+    def __init__(self):
+        self._config = _load_languages_config()
+        self._languages = self._load_languages()
+        self._translations = self._config.get("translations", {})
+        self._session_languages: Dict[str, str] = {}
+        self._default_language = self._config.get("default_language", "pl")
+        logger.info(f"🌐 LanguageManager initialized with {len(self._languages)} languages")
     
-    # UI Translations
+    def _load_languages(self) -> Dict[str, LanguageConfig]:
+        """Load languages from config"""
+        languages = {}
+        for code, data in self._config.get("languages", {}).items():
+            languages[code] = LanguageConfig.from_dict(code, data)
+        return languages
+    
+    def reload_config(self):
+        """Reload language configuration from JSON"""
+        self._config = _load_languages_config()
+        self._languages = self._load_languages()
+        self._translations = self._config.get("translations", {})
+        logger.info("🔄 Language configuration reloaded")
+    
+    # Legacy support - keep LANGUAGES as property
+    @property
+    def LANGUAGES(self) -> Dict[str, LanguageConfig]:
+        return self._languages
+    
+    # UI Translations (loaded from JSON, with fallback)
     TRANSLATIONS = {
         "pl": {
             "welcome": "Cześć! Jestem Twoim asystentem. Powiedz co chcesz zrobić.",
@@ -220,9 +223,21 @@ class LanguageManager:
     }
     
     def __init__(self):
-        self.current_language = "pl"
+        # Load from external JSON config
+        self._config = _load_languages_config()
+        self._languages = self._load_languages_from_config()
+        self._default_language = self._config.get("default_language", "pl")
+        self.current_language = self._default_language
         self.session_languages: Dict[str, str] = {}  # session_id -> language
-        logger.info(f"🌐 LanguageManager initialized: {self.current_language}")
+        logger.info(f"🌐 LanguageManager initialized with {len(self._languages)} languages")
+    
+    def _load_languages_from_config(self) -> Dict[str, LanguageConfig]:
+        """Load languages from external JSON config"""
+        languages = {}
+        for code, data in self._config.get("languages", {}).items():
+            if data.get("enabled", True):
+                languages[code] = LanguageConfig.from_dict(code, data)
+        return languages
     
     def get_language(self, session_id: str = None) -> str:
         """Get current language for session"""
@@ -246,17 +261,41 @@ class LanguageManager:
         return True
     
     def get_available_languages(self) -> List[Dict]:
-        """Get list of available languages"""
+        """Get list of available languages with icons"""
         return [
             {
                 "code": lang.code,
                 "name": lang.name,
                 "native_name": lang.native_name,
+                "icon": lang.icon,
+                "tts_code": lang.tts_code,
+                "stt_code": lang.stt_code,
                 "enabled": lang.enabled
             }
-            for lang in self.LANGUAGES.values()
+            for lang in self._languages.values()
             if lang.enabled
         ]
+    
+    def get_language_for_llm(self, session_id: str = None) -> Dict:
+        """Get language config for LLM prompts"""
+        lang_code = self.get_language(session_id)
+        lang = self._languages.get(lang_code, self._languages.get("pl"))
+        
+        return {
+            "code": lang.code,
+            "locale": lang.llm_locale,
+            "name": lang.native_name,
+            "system_prompt_suffix": f"Odpowiadaj w języku {lang.native_name}.",
+            "date_format": lang.date_format,
+            "currency": lang.currency
+        }
+    
+    def get_language_icon(self, lang_code: str = None) -> str:
+        """Get flag icon for language"""
+        if not lang_code:
+            lang_code = self._default_language
+        lang = self._languages.get(lang_code)
+        return lang.icon if lang else "🌐"
     
     def translate(self, key: str, session_id: str = None) -> str:
         """Get translation for key"""

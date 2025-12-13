@@ -1,0 +1,273 @@
+{
+  "apps": {
+    "documents": {
+      "name": "📄 Dokumenty",
+      "description": "Zarządzanie fakturami, umowami i skanami",
+      "icon": "📄",
+      "color": "#3b82f6",
+      "skills": [
+        {"cmd": "pokaż faktury", "name": "Pokaż faktury", "desc": "Wyświetl listę faktur"},
+        {"cmd": "zeskanuj fakturę", "name": "Skanuj", "desc": "Zeskanuj nowy dokument"},
+        {"cmd": "suma faktur", "name": "Suma", "desc": "Pokaż sumę faktur"},
+        {"cmd": "faktury do zapłaty", "name": "Do zapłaty", "desc": "Faktury oczekujące"},
+        {"cmd": "umowy", "name": "Umowy", "desc": "Lista umów"},
+        {"cmd": "przeterminowane", "name": "Przeterminowane", "desc": "Dokumenty po terminie"},
+        {"cmd": "eksportuj do excel", "name": "Eksport", "desc": "Eksportuj do Excel"},
+        {"cmd": "archiwum", "name": "Archiwum", "desc": "Dokumenty archiwalne"}
+      ]
+    },
+    "cameras": {
+      "name": "🎥 Monitoring",
+      "description": "Kamery CCTV i system bezpieczeństwa",
+      "icon": "🎥",
+      "color": "#ef4444",
+      "skills": [
+        {"cmd": "pokaż kamery", "name": "Kamery", "desc": "Podgląd wszystkich kamer"},
+        {"cmd": "gdzie ruch", "name": "Ruch", "desc": "Wykryty ruch"},
+        {"cmd": "alerty", "name": "Alerty", "desc": "Aktywne alerty"},
+        {"cmd": "nagraj", "name": "Nagrywanie", "desc": "Rozpocznij nagrywanie"},
+        {"cmd": "parking", "name": "Parking", "desc": "Kamery parkingu"},
+        {"cmd": "wejście", "name": "Wejście", "desc": "Kamera wejścia"},
+        {"cmd": "mapa ciepła", "name": "Mapa ciepła", "desc": "Heatmapa ruchu"},
+        {"cmd": "historia nagrań", "name": "Historia", "desc": "Archiwum nagrań"}
+      ]
+    },
+    "sales": {
+      "name": "📊 Sprzedaż",
+      "description": "Dashboard KPI i raporty sprzedażowe",
+      "icon": "📊",
+      "color": "#10b981",
+      "skills": [
+        {"cmd": "pokaż sprzedaż", "name": "Dashboard", "desc": "Dashboard sprzedaży"},
+        {"cmd": "raport", "name": "Raport", "desc": "Generuj raport"},
+        {"cmd": "porównaj regiony", "name": "Regiony", "desc": "Porównanie regionów"},
+        {"cmd": "top produkty", "name": "Top produkty", "desc": "Najlepsze produkty"},
+        {"cmd": "kpi", "name": "KPI", "desc": "Wskaźniki KPI"},
+        {"cmd": "prognoza", "name": "Prognoza", "desc": "Prognoza sprzedaży"},
+        {"cmd": "lejek sprzedaży", "name": "Lejek", "desc": "Sales funnel"},
+        {"cmd": "prowizje", "name": "Prowizje", "desc": "Prowizje sprzedaży"}
+      ]
+    },
+    "home": {
+      "name": "🏠 Smart Home",
+      "description": "Inteligentny dom i czujniki IoT",
+      "icon": "🏠",
+      "color": "#f59e0b",
+      "skills": [
+        {"cmd": "temperatura", "name": "Temperatura", "desc": "Odczyty temperatury"},
+        {"cmd": "oświetlenie", "name": "Światła", "desc": "Sterowanie oświetleniem"},
+        {"cmd": "energia", "name": "Energia", "desc": "Zużycie energii"},
+        {"cmd": "ogrzewanie", "name": "Ogrzewanie", "desc": "Sterowanie ogrzewaniem"},
+        {"cmd": "klimatyzacja", "name": "Klimatyzacja", "desc": "Sterowanie AC"},
+        {"cmd": "alarm", "name": "Alarm", "desc": "System alarmowy"},
+        {"cmd": "czujniki", "name": "Czujniki", "desc": "Status czujników"},
+        {"cmd": "harmonogram", "name": "Harmonogram", "desc": "Automatyzacje"}
+      ]
+    },
+    "analytics": {
+      "name": "📈 Analityka",
+      "description": "Raporty, wykresy i predykcje",
+      "icon": "📈",
+      "color": "#8b5cf6",
+      "skills": [
+        {"cmd": "analiza", "name": "Analiza", "desc": "Dashboard analityczny"},
+        {"cmd": "wykres", "name": "Wykresy", "desc": "Generuj wykres"},
+        {"cmd": "raport dzienny", "name": "Dzienny", "desc": "Raport dzienny"},
+        {"cmd": "raport tygodniowy", "name": "Tygodniowy", "desc": "Raport tygodniowy"},
+        {"cmd": "anomalie", "name": "Anomalie", "desc": "Wykryj anomalie"},
+        {"cmd": "predykcja", "name": "Predykcja", "desc": "Prognozowanie AI"},
+        {"cmd": "porównanie", "name": "Porównanie", "desc": "Porównaj okresy"}
+      ]
+    },
+    "internet": {
+      "name": "🌐 Internet",
+      "description": "Integracje z usługami zewnętrznymi",
+      "icon": "🌐",
+      "color": "#06b6d4",
+      "skills": [
+        {"cmd": "pogoda", "name": "Pogoda", "desc": "Aktualna pogoda"},
+        {"cmd": "bitcoin", "name": "Crypto", "desc": "Kursy kryptowalut"},
+        {"cmd": "kursy walut", "name": "Waluty", "desc": "Kursy walut"},
+        {"cmd": "rss", "name": "RSS", "desc": "Kanały RSS"},
+        {"cmd": "news", "name": "News", "desc": "Wiadomości"},
+        {"cmd": "email", "name": "Email", "desc": "Wyślij email"},
+        {"cmd": "mqtt", "name": "MQTT", "desc": "IoT messaging"},
+        {"cmd": "integracje", "name": "Status", "desc": "Status integracji"}
+      ]
+    },
+    "system": {
+      "name": "⚙️ System",
+      "description": "Ustawienia i pomoc",
+      "icon": "⚙️",
+      "color": "#6b7280",
+      "skills": [
+        {"cmd": "pomoc", "name": "Pomoc", "desc": "Lista komend"},
+        {"cmd": "status", "name": "Status", "desc": "Status systemu"},
+        {"cmd": "historia", "name": "Historia", "desc": "Historia konwersacji"},
+        {"cmd": "wyczyść", "name": "Wyczyść", "desc": "Wyczyść widok"},
+        {"cmd": "ustawienia", "name": "Ustawienia", "desc": "Konfiguracja"}
+      ]
+    }
+  },
+  "intents": {
+    "documents": {
+      "pokaż faktury": "show_all",
+      "zeskanuj fakturę": "scan_new",
+      "ile faktur": "count",
+      "faktury do zapłaty": "filter_unpaid",
+      "suma faktur": "sum_total",
+      "znajdź fakturę": "search",
+      "dokumenty": "show_all",
+      "faktury": "show_all",
+      "umowy": "contracts",
+      "przeterminowane": "overdue",
+      "eksportuj do excel": "export_excel",
+      "wyślij przypomnienie": "send_reminder",
+      "archiwum": "archive",
+      "ostatnie skany": "recent_scans",
+      "statystyki dokumentów": "stats"
+    },
+    "cameras": {
+      "pokaż kamery": "show_grid",
+      "monitoring": "show_grid",
+      "kamera": "show_single",
+      "gdzie ruch": "show_motion",
+      "alerty": "show_alerts",
+      "nagraj": "record",
+      "ile osób": "count_people",
+      "parking": "parking",
+      "wejście": "entrance",
+      "magazyn": "warehouse",
+      "strefa zastrzeżona": "restricted",
+      "nocny tryb": "night_mode",
+      "wykryj twarz": "face_detection",
+      "historia nagrań": "recordings",
+      "mapa ciepła": "heatmap"
+    },
+    "sales": {
+      "sprzedaż": "show_dashboard",
+      "pokaż sprzedaż": "show_dashboard",
+      "raport": "show_report",
+      "porównaj regiony": "compare_regions",
+      "top produkty": "top_products",
+      "trend": "show_trend",
+      "kpi": "kpi_dashboard",
+      "cele sprzedażowe": "targets",
+      "prowizje": "commissions",
+      "prognoza": "forecast",
+      "konwersja": "conversion",
+      "lejek sprzedaży": "funnel"
+    },
+    "home": {
+      "temperatura": "temperature",
+      "oświetlenie": "lighting",
+      "energia": "energy",
+      "zużycie prądu": "power_usage",
+      "ogrzewanie": "heating",
+      "klimatyzacja": "ac",
+      "rolety": "blinds",
+      "alarm": "alarm",
+      "czujniki": "sensors",
+      "harmonogram": "schedule"
+    },
+    "analytics": {
+      "analiza": "overview",
+      "wykres": "chart",
+      "porównanie": "compare",
+      "raport dzienny": "daily_report",
+      "raport tygodniowy": "weekly_report",
+      "raport miesięczny": "monthly_report",
+      "anomalie": "anomalies",
+      "predykcja": "prediction"
+    },
+    "internet": {
+      "pogoda": "weather",
+      "weather": "weather",
+      "pogoda warszawa": "weather_warsaw",
+      "pogoda kraków": "weather_krakow",
+      "wiadomości": "news",
+      "news": "news",
+      "rss": "rss",
+      "kanały rss": "rss",
+      "bitcoin": "crypto",
+      "crypto": "crypto",
+      "kryptowaluty": "crypto",
+      "kursy walut": "exchange",
+      "exchange": "exchange",
+      "wyślij email": "send_email",
+      "email": "send_email",
+      "mqtt": "mqtt",
+      "iot": "mqtt",
+      "webhook": "webhook",
+      "api": "api_status",
+      "integracje": "integrations",
+      "http": "http_test"
+    },
+    "system": {
+      "pomoc": "help",
+      "wyczyść": "clear",
+      "status": "status",
+      "ustawienia": "settings",
+      "historia": "history",
+      "zaloguj": "login",
+      "login": "login",
+      "wyloguj": "logout",
+      "logout": "logout",
+      "kto": "whoami",
+      "użytkownicy": "users",
+      "start": "welcome",
+      "aplikacje": "welcome"
+    },
+    "files": {
+      "pokaż pliki": "list",
+      "moje dokumenty": "documents",
+      "moje pliki": "list",
+      "pobrane": "downloads",
+      "znajdź plik": "search",
+      "szukaj pliku": "search",
+      "otwórz plik": "open",
+      "informacje o pliku": "info",
+      "rozmiar folderu": "size",
+      "ostatnie pliki": "recent"
+    },
+    "cloud_storage": {
+      "połącz onedrive": "connect_onedrive",
+      "połącz nextcloud": "connect_nextcloud",
+      "połącz google drive": "connect_gdrive",
+      "pokaż chmurę": "list_cloud",
+      "sync pliki": "sync_files",
+      "upload": "upload_file",
+      "download": "download_file",
+      "status chmury": "cloud_status"
+    },
+    "shell": {
+      "wykonaj": "execute",
+      "ile pamięci": "memory",
+      "ile miejsca": "disk",
+      "procesy": "processes",
+      "czas działania": "uptime"
+    },
+    "database": {
+      "pokaż tabele": "list_tables",
+      "pokaż użytkowników": "list_users",
+      "zapytanie sql": "query"
+    }
+  },
+  "keywords": {
+    "documents": ["faktur", "dokument", "skan", "umow", "pdf"],
+    "cameras": ["kamer", "monitor", "wideo", "obraz", "nagr", "cctv"],
+    "sales": ["sprzeda", "raport", "kpi", "wynik", "przychod", "zysk"],
+    "home": ["dom", "temp", "światł", "prąd", "ogrzew", "klima"],
+    "analytics": ["anali", "wykres", "statyst", "trend", "porówn"],
+    "security": ["alarm", "bezpiecz", "dostęp", "strefa", "intruz"],
+    "internet": ["pogod", "weather", "news", "rss", "bitcoin", "crypto", "kurs", "email", "mqtt", "webhook", "api", "http"],
+    "services": ["usług", "systemctl", "docker", "kontener", "demon", "service"],
+    "monitoring": ["cpu", "ram", "dysk", "pamięć", "zasob", "procesy"],
+    "backup": ["kopia", "backup", "przywróć", "archiwum"],
+    "registry": ["rejestr", "zewnętrz", "pakiet"],
+    "files": ["plik", "folder", "katalog", "directory", "pobran", "document"],
+    "cloud_storage": ["chmur", "cloud", "onedrive", "nextcloud", "google drive", "sync", "upload", "download"],
+    "shell": ["wykonaj", "uruchom", "terminal", "bash", "shell", "komenda"],
+    "database": ["baza", "sql", "tabela", "rekord", "zapytanie"]
+  }
+}

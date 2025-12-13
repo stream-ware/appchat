@@ -72,25 +72,42 @@
         .app-actions {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
+            max-width: 70%;
         }
         
         .app-actions button {
-            padding: 8px 16px;
+            padding: 6px 12px;
             background: var(--bg-input);
             border: 1px solid var(--border);
             border-radius: 6px;
             color: var(--text-primary);
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             transition: all 0.2s;
+            white-space: nowrap;
         }
         
         .app-actions button:hover {
             background: var(--primary);
             border-color: var(--primary);
+        }
+        
+        .app-actions .skill-chip {
+            padding: 4px 10px;
+            background: var(--primary);
+            border: none;
+            border-radius: 16px;
+            color: white;
+            font-size: 0.75rem;
+        }
+        
+        .app-actions .skill-chip:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
         }
         
         .app-content {
@@ -876,6 +893,71 @@
             color: white;
         }
         
+        /* Language Menu */
+        .language-menu {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px;
+            z-index: 1000;
+            min-width: 200px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .language-menu-header {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+        
+        .language-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+        }
+        
+        .lang-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+            border: 1px solid transparent;
+        }
+        
+        .lang-option:hover {
+            background: var(--bg-input);
+            border-color: var(--border);
+        }
+        
+        .lang-option.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .lang-option .flag {
+            font-size: 1.5rem;
+        }
+        
+        .lang-option .name {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        
+        .lang-option.active .name {
+            color: white;
+        }
+        
         .config-btn.active {
             background: var(--primary);
             color: white;
@@ -1255,8 +1337,18 @@ Przykładowe komendy:
             <div class="config-bar">
                 <button onclick="showConfig()" class="config-btn" title="Ustawienia">⚙️</button>
                 <button onclick="toggleTTS()" class="config-btn" id="tts-btn" title="TTS">🔊</button>
+                <button onclick="showLanguageMenu()" class="config-btn" id="lang-btn" title="Język">🇵🇱</button>
                 <button onclick="showServices()" class="config-btn" title="Usługi">🔌</button>
+                <button onclick="copyChatToClipboard()" class="config-btn" title="Kopiuj chat">📋</button>
                 <button onclick="clearHistory()" class="config-btn" title="Wyczyść">🗑️</button>
+            </div>
+            
+            <!-- LANGUAGE MENU -->
+            <div id="language-menu" class="language-menu" style="display: none;">
+                <div class="language-menu-header">🌐 Wybierz język</div>
+                <div class="language-options" id="language-options">
+                    <!-- Populated by JavaScript -->
+                </div>
             </div>
         </div>
     </div>
@@ -1359,6 +1451,32 @@ Przykładowe komendy:
                     <span class="history-app">${entry.appType || 'system'}</span>
                 </div>
             `).join('');
+        }
+        
+        function copyChatToClipboard() {
+            const messages = document.querySelectorAll('#chat-messages .message');
+            let text = '=== STREAMWARE CHAT LOG ===\n';
+            text += `Date: ${new Date().toLocaleString()}\n\n`;
+            
+            messages.forEach(msg => {
+                const role = msg.classList.contains('user') ? 'USER' : 'BOT';
+                const content = msg.childNodes[0]?.textContent?.trim() || '';
+                const time = msg.querySelector('.timestamp')?.textContent || '';
+                text += `[${time}] ${role}: ${content}\n`;
+            });
+            
+            navigator.clipboard.writeText(text).then(() => {
+                addChatMessage('📋 Chat skopiowany do schowka!', 'assistant');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                addChatMessage('📋 Chat skopiowany do schowka!', 'assistant');
+            });
         }
         
         function clearHistory() {
@@ -1510,6 +1628,85 @@ Przykładowe komendy:
             addChatMessage(ttsEnabled ? '🔊 TTS włączony' : '🔇 TTS wyłączony', 'assistant');
         }
         
+        // ===== LANGUAGE MANAGEMENT =====
+        let currentLanguage = 'pl';
+        const languages = [
+            { code: 'pl', icon: '🇵🇱', name: 'Polski', tts: 'pl-PL', stt: 'pl-PL' },
+            { code: 'en', icon: '🇬🇧', name: 'English', tts: 'en-GB', stt: 'en-GB' },
+            { code: 'de', icon: '🇩🇪', name: 'Deutsch', tts: 'de-DE', stt: 'de-DE' },
+            { code: 'fr', icon: '🇫🇷', name: 'Français', tts: 'fr-FR', stt: 'fr-FR' },
+            { code: 'es', icon: '🇪🇸', name: 'Español', tts: 'es-ES', stt: 'es-ES' },
+            { code: 'it', icon: '🇮🇹', name: 'Italiano', tts: 'it-IT', stt: 'it-IT' },
+            { code: 'uk', icon: '🇺🇦', name: 'Українська', tts: 'uk-UA', stt: 'uk-UA' },
+            { code: 'cs', icon: '🇨🇿', name: 'Čeština', tts: 'cs-CZ', stt: 'cs-CZ' },
+            { code: 'nl', icon: '🇳🇱', name: 'Nederlands', tts: 'nl-NL', stt: 'nl-NL' },
+            { code: 'sv', icon: '🇸🇪', name: 'Svenska', tts: 'sv-SE', stt: 'sv-SE' },
+            { code: 'no', icon: '🇳🇴', name: 'Norsk', tts: 'nb-NO', stt: 'nb-NO' },
+            { code: 'da', icon: '🇩🇰', name: 'Dansk', tts: 'da-DK', stt: 'da-DK' },
+        ];
+        
+        function initLanguageMenu() {
+            const optionsEl = document.getElementById('language-options');
+            if (!optionsEl) return;
+            
+            optionsEl.innerHTML = languages.map(lang => `
+                <div class="lang-option ${lang.code === currentLanguage ? 'active' : ''}" 
+                     onclick="setLanguage('${lang.code}')" title="${lang.name}">
+                    <span class="flag">${lang.icon}</span>
+                    <span class="name">${lang.name}</span>
+                </div>
+            `).join('');
+        }
+        
+        function showLanguageMenu() {
+            const menu = document.getElementById('language-menu');
+            if (menu.style.display === 'none') {
+                menu.style.display = 'block';
+                initLanguageMenu();
+            } else {
+                menu.style.display = 'none';
+            }
+        }
+        
+        function setLanguage(langCode) {
+            const lang = languages.find(l => l.code === langCode);
+            if (!lang) return;
+            
+            currentLanguage = langCode;
+            
+            // Update button icon
+            document.getElementById('lang-btn').textContent = lang.icon;
+            
+            // Update STT language
+            if (recognition) {
+                recognition.lang = lang.stt;
+            }
+            
+            // Send to server
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'set_language',
+                    language: langCode
+                }));
+            }
+            
+            // Hide menu and show confirmation
+            document.getElementById('language-menu').style.display = 'none';
+            addChatMessage(`${lang.icon} Język zmieniony na: ${lang.name}`, 'assistant');
+            
+            // Update menu active state
+            initLanguageMenu();
+        }
+        
+        // Close language menu when clicking outside
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('language-menu');
+            const btn = document.getElementById('lang-btn');
+            if (menu && !menu.contains(e.target) && e.target !== btn) {
+                menu.style.display = 'none';
+            }
+        });
+        
         function addChatMessage(text, sender) {
             const messagesEl = document.getElementById('chat-messages');
             const messageEl = document.createElement('div');
@@ -1566,8 +1763,23 @@ Przykładowe komendy:
             titleEl.textContent = view.title || 'Streamware';
             subtitleEl.textContent = view.subtitle || '';
             
-            // Render actions
+            // Render actions + contextual skills for current app
             actionsEl.innerHTML = '';
+            
+            // Add contextual skills based on app type
+            const appSkills = getAppSkills(view.type);
+            if (appSkills && appSkills.length > 0) {
+                appSkills.slice(0, 6).forEach(skill => {
+                    const btn = document.createElement('button');
+                    btn.className = 'skill-chip';
+                    btn.textContent = skill.name || skill.cmd;
+                    btn.title = skill.desc || skill.cmd;
+                    btn.onclick = () => sendCommand(skill.cmd);
+                    actionsEl.appendChild(btn);
+                });
+            }
+            
+            // Add view-specific actions
             if (view.actions) {
                 view.actions.forEach(action => {
                     const btn = document.createElement('button');
@@ -2084,6 +2296,74 @@ Przykładowe komendy:
             sendCommand(actionId);
         }
         
+        // Get contextual skills for app type
+        function getAppSkills(appType) {
+            const skills = {
+                'internet': [
+                    {cmd: 'pogoda', name: '🌤️ Pogoda', desc: 'Aktualna pogoda'},
+                    {cmd: 'pogoda kraków', name: '📍 Kraków', desc: 'Pogoda Kraków'},
+                    {cmd: 'pogoda gdańsk', name: '📍 Gdańsk', desc: 'Pogoda Gdańsk'},
+                    {cmd: 'bitcoin', name: '₿ Bitcoin', desc: 'Kurs Bitcoin'},
+                    {cmd: 'rss', name: '📰 RSS', desc: 'Kanały RSS'},
+                    {cmd: 'integracje', name: '🔌 Status', desc: 'Status integracji'},
+                ],
+                'documents': [
+                    {cmd: 'pokaż faktury', name: '📄 Faktury', desc: 'Lista faktur'},
+                    {cmd: 'suma faktur', name: '💰 Suma', desc: 'Suma faktur'},
+                    {cmd: 'faktury do zapłaty', name: '⏰ Do zapłaty', desc: 'Nieopłacone'},
+                    {cmd: 'zeskanuj fakturę', name: '📷 Skanuj', desc: 'Skanuj dokument'},
+                    {cmd: 'eksportuj do excel', name: '📊 Eksport', desc: 'Eksport Excel'},
+                ],
+                'cameras': [
+                    {cmd: 'pokaż kamery', name: '🎥 Kamery', desc: 'Wszystkie kamery'},
+                    {cmd: 'gdzie ruch', name: '👁️ Ruch', desc: 'Wykryty ruch'},
+                    {cmd: 'alerty', name: '🚨 Alerty', desc: 'Aktywne alerty'},
+                    {cmd: 'parking', name: '🅿️ Parking', desc: 'Kamery parkingu'},
+                    {cmd: 'nagraj', name: '⏺️ Nagrywaj', desc: 'Rozpocznij nagrywanie'},
+                ],
+                'sales': [
+                    {cmd: 'pokaż sprzedaż', name: '📊 Dashboard', desc: 'Dashboard sprzedaży'},
+                    {cmd: 'raport', name: '📋 Raport', desc: 'Generuj raport'},
+                    {cmd: 'top produkty', name: '🏆 Top', desc: 'Najlepsze produkty'},
+                    {cmd: 'kpi', name: '📈 KPI', desc: 'Wskaźniki'},
+                    {cmd: 'prognoza', name: '🔮 Prognoza', desc: 'Prognoza sprzedaży'},
+                ],
+                'home': [
+                    {cmd: 'temperatura', name: '🌡️ Temp', desc: 'Temperatura'},
+                    {cmd: 'oświetlenie', name: '💡 Światła', desc: 'Sterowanie światłem'},
+                    {cmd: 'alarm', name: '🚨 Alarm', desc: 'System alarmowy'},
+                    {cmd: 'energia', name: '⚡ Energia', desc: 'Zużycie energii'},
+                ],
+                'analytics': [
+                    {cmd: 'analiza', name: '📈 Analiza', desc: 'Dashboard'},
+                    {cmd: 'wykres', name: '📊 Wykres', desc: 'Generuj wykres'},
+                    {cmd: 'anomalie', name: '⚠️ Anomalie', desc: 'Wykryj anomalie'},
+                    {cmd: 'predykcja', name: '🔮 Predykcja', desc: 'AI prognoza'},
+                ],
+                'services': [
+                    {cmd: 'usługi', name: '🔧 Lista', desc: 'Lista usług'},
+                    {cmd: 'docker', name: '🐳 Docker', desc: 'Kontenery'},
+                    {cmd: 'systemctl', name: '⚙️ Systemd', desc: 'Usługi systemd'},
+                ],
+                'monitoring': [
+                    {cmd: 'cpu', name: '💻 CPU', desc: 'Użycie CPU'},
+                    {cmd: 'pamięć', name: '🧠 RAM', desc: 'Użycie pamięci'},
+                    {cmd: 'dysk', name: '💾 Dysk', desc: 'Użycie dysku'},
+                    {cmd: 'procesy', name: '📋 Procesy', desc: 'Lista procesów'},
+                ],
+                'backup': [
+                    {cmd: 'backup', name: '💾 Utwórz', desc: 'Utwórz kopię'},
+                    {cmd: 'lista kopii', name: '📋 Lista', desc: 'Lista kopii'},
+                ],
+                'system': [
+                    {cmd: 'pomoc', name: '❓ Pomoc', desc: 'Lista komend'},
+                    {cmd: 'status', name: '⚙️ Status', desc: 'Status systemu'},
+                    {cmd: 'start', name: '🏠 Start', desc: 'Dashboard'},
+                ],
+            };
+            return skills[appType] || [];
+        }
+        
         // ===== VOICE RECOGNITION =====
         function initSpeechRecognition() {
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -2287,6 +2567,10 @@ Przykładowe komendy:
             }
         }
         
+        // ===== LANGUAGE STATE =====
+        let currentLanguage = 'pl';
+        let translations = {};
+        
         // ===== CONFIG MODAL =====
         async function showConfig() {
             const modal = document.getElementById('config-modal');
@@ -2296,41 +2580,97 @@ Przykładowe komendy:
             modal.classList.add('active');
             
             try {
-                const response = await fetch('/api/llm/providers');
-                const data = await response.json();
+                const [llmRes, langRes, currLangRes] = await Promise.all([
+                    fetch('/api/llm/providers'),
+                    fetch('/api/languages'),
+                    fetch('/api/language')
+                ]);
+                
+                const llmData = await llmRes.json();
+                const langData = await langRes.json();
+                const currLang = await currLangRes.json();
+                
+                currentLanguage = currLang.language;
                 
                 let html = `
                     <div class="config-item">
+                        <label>🌐 Język / Language</label>
+                        <select id="language-select" onchange="changeLanguage()">
+                            ${langData.languages.map(l => 
+                                `<option value="${l.code}" ${l.code === currentLanguage ? 'selected' : ''}>${l.native_name} (${l.name})</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="config-item">
                         <label>🤖 LLM Provider</label>
                         <select id="llm-provider" onchange="changeLLM()">
-                            ${data.providers.map(p => 
+                            ${llmData.providers.map(p => 
                                 `<option value="${p.id}" ${p.is_active ? 'selected' : ''}>${p.name}</option>`
                             ).join('')}
                         </select>
                     </div>
                     <div class="config-item">
                         <label>🔊 TTS</label>
-                        <select id="tts-setting" onchange="ttsEnabled = this.value === 'on'">
-                            <option value="on" ${ttsEnabled ? 'selected' : ''}>Włączony</option>
-                            <option value="off" ${!ttsEnabled ? 'selected' : ''}>Wyłączony</option>
+                        <select id="tts-setting" onchange="toggleTTSSetting()">
+                            <option value="on" ${ttsEnabled ? 'selected' : ''}>✅ ${translate('enabled', 'Włączony')}</option>
+                            <option value="off" ${!ttsEnabled ? 'selected' : ''}>❌ ${translate('disabled', 'Wyłączony')}</option>
                         </select>
                     </div>
                     <div class="config-item">
-                        <label>🌐 Język</label>
-                        <select disabled>
-                            <option selected>Polski</option>
+                        <label>🎤 STT</label>
+                        <select id="stt-setting" onchange="toggleSTTSetting()">
+                            <option value="on">✅ ${translate('enabled', 'Włączony')}</option>
+                            <option value="off">❌ ${translate('disabled', 'Wyłączony')}</option>
                         </select>
                     </div>
                     <div class="config-item">
-                        <label>🎨 Motyw</label>
-                        <select disabled>
-                            <option selected>Ciemny</option>
+                        <label>🎨 ${translate('theme', 'Motyw')}</label>
+                        <select id="theme-select" disabled>
+                            <option selected>🌙 Dark</option>
                         </select>
+                    </div>
+                    <hr style="border-color: var(--border); margin: 12px 0;">
+                    <div class="config-item">
+                        <label>📦 ${translate('generate_app', 'Generuj App')}</label>
+                        <button onclick="showAppGenerator()" style="padding: 6px 12px; background: var(--primary); border: none; border-radius: 4px; color: white; cursor: pointer;">
+                            🏭 Generator
+                        </button>
                     </div>
                 `;
                 body.innerHTML = html;
             } catch(e) {
                 body.innerHTML = '<p style="color: var(--danger);">Błąd ładowania konfiguracji</p>';
+            }
+        }
+        
+        function translate(key, fallback) {
+            return translations[key] || fallback;
+        }
+        
+        async function changeLanguage() {
+            const lang = document.getElementById('language-select').value;
+            try {
+                await fetch('/api/language', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({language: lang, session_id: clientId})
+                });
+                
+                // Update translations
+                const transRes = await fetch(`/api/translations?session_id=${clientId}`);
+                const transData = await transRes.json();
+                translations = transData.translations;
+                currentLanguage = lang;
+                
+                // Update STT language
+                if (recognition) {
+                    const sttConfig = await (await fetch(`/api/stt/config?session_id=${clientId}`)).json();
+                    recognition.lang = sttConfig.language;
+                }
+                
+                addChatMessage(`🌐 ${translate('language_changed', 'Język zmieniony')}: ${lang.toUpperCase()}`, 'assistant');
+            } catch(e) {
+                addChatMessage('❌ Błąd zmiany języka', 'assistant');
             }
         }
         
@@ -2342,9 +2682,127 @@ Przykładowe komendy:
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({provider})
                 });
-                addChatMessage(`✅ LLM zmieniony na: ${provider}`, 'assistant');
+                addChatMessage(`✅ LLM: ${provider}`, 'assistant');
             } catch(e) {
                 addChatMessage('❌ Błąd zmiany LLM', 'assistant');
+            }
+        }
+        
+        function toggleTTSSetting() {
+            ttsEnabled = document.getElementById('tts-setting').value === 'on';
+            document.getElementById('tts-btn').classList.toggle('active', ttsEnabled);
+        }
+        
+        function toggleSTTSetting() {
+            const enabled = document.getElementById('stt-setting').value === 'on';
+            if (!enabled && isListening) {
+                recognition?.stop();
+            }
+        }
+        
+        // ===== APP GENERATOR MODAL =====
+        async function showAppGenerator() {
+            closeModal('config-modal');
+            
+            const modal = document.getElementById('services-modal');
+            const body = document.getElementById('services-modal-body');
+            document.querySelector('#services-modal h3').textContent = '🏭 App Generator';
+            
+            body.innerHTML = '<p>Ładowanie...</p>';
+            modal.classList.add('active');
+            
+            try {
+                const regRes = await fetch('/api/generator/registries');
+                const regData = await regRes.json();
+                
+                body.innerHTML = `
+                    <h4 style="margin-bottom: 10px;">📦 Z pakietu (npm/pypi/docker)</h4>
+                    <div class="config-item">
+                        <label>Rejestr</label>
+                        <select id="gen-registry">
+                            ${regData.registries.map(r => 
+                                `<option value="${r.id}">${r.name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>Pakiet</label>
+                        <input type="text" id="gen-package" placeholder="np. express, flask, nginx" style="flex:1">
+                    </div>
+                    <button onclick="generateFromPackage()" style="width:100%; padding:10px; background:var(--primary); border:none; border-radius:6px; color:white; cursor:pointer; margin-bottom:15px;">
+                        🚀 Generuj z pakietu
+                    </button>
+                    
+                    <h4 style="margin-bottom: 10px;">🔌 Z API Docs URL</h4>
+                    <div class="config-item">
+                        <label>URL</label>
+                        <input type="text" id="gen-api-url" placeholder="https://api.example.com/docs" style="flex:1">
+                    </div>
+                    <button onclick="generateFromApiDocs()" style="width:100%; padding:10px; background:var(--success); border:none; border-radius:6px; color:white; cursor:pointer;">
+                        🔌 Generuj z API
+                    </button>
+                `;
+            } catch(e) {
+                body.innerHTML = '<p style="color: var(--danger);">Błąd ładowania</p>';
+            }
+        }
+        
+        async function generateFromPackage() {
+            const registry = document.getElementById('gen-registry').value;
+            const pkg = document.getElementById('gen-package').value;
+            
+            if (!pkg) {
+                alert('Podaj nazwę pakietu');
+                return;
+            }
+            
+            addChatMessage(`🏭 Generuję app z ${registry}/${pkg}...`, 'assistant');
+            closeModal('services-modal');
+            
+            try {
+                const res = await fetch('/api/generator/from-package', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({registry, package: pkg})
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    addChatMessage(`✅ App wygenerowana: ${data.app_id}`, 'assistant');
+                } else {
+                    addChatMessage(`❌ Błąd: ${data.error}`, 'assistant');
+                }
+            } catch(e) {
+                addChatMessage(`❌ Błąd: ${e.message}`, 'assistant');
+            }
+        }
+        
+        async function generateFromApiDocs() {
+            const url = document.getElementById('gen-api-url').value;
+            
+            if (!url) {
+                alert('Podaj URL do API docs');
+                return;
+            }
+            
+            addChatMessage(`🔌 Generuję app z API: ${url}...`, 'assistant');
+            closeModal('services-modal');
+            
+            try {
+                const res = await fetch('/api/generator/from-api-docs', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url})
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    addChatMessage(`✅ API App wygenerowana: ${data.app_id} (${data.commands} komend)`, 'assistant');
+                } else {
+                    addChatMessage(`❌ Błąd: ${data.error}`, 'assistant');
+                }
+            } catch(e) {
+                addChatMessage(`❌ Błąd: ${e.message}`, 'assistant');
             }
         }
         

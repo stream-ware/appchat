@@ -1,0 +1,310 @@
+{
+  "languages": {
+    "pl": {
+      "name": "Polski",
+      "native_name": "Polski",
+      "icon": "🇵🇱",
+      "flag": "pl",
+      "tts_code": "pl-PL",
+      "stt_code": "pl-PL",
+      "llm_locale": "pl",
+      "date_format": "DD.MM.YYYY",
+      "time_format": "HH:mm",
+      "currency": "PLN",
+      "enabled": true
+    },
+    "en": {
+      "name": "English",
+      "native_name": "English",
+      "icon": "🇬🇧",
+      "flag": "gb",
+      "tts_code": "en-GB",
+      "stt_code": "en-GB",
+      "llm_locale": "en",
+      "date_format": "DD/MM/YYYY",
+      "time_format": "HH:mm",
+      "currency": "GBP",
+      "enabled": true
+    },
+    "de": {
+      "name": "German",
+      "native_name": "Deutsch",
+      "icon": "🇩🇪",
+      "flag": "de",
+      "tts_code": "de-DE",
+      "stt_code": "de-DE",
+      "llm_locale": "de",
+      "date_format": "DD.MM.YYYY",
+      "time_format": "HH:mm",
+      "currency": "EUR",
+      "enabled": true
+    },
+    "fr": {
+      "name": "French",
+      "native_name": "Français",
+      "icon": "🇫🇷",
+      "flag": "fr",
+      "tts_code": "fr-FR",
+      "stt_code": "fr-FR",
+      "llm_locale": "fr",
+      "date_format": "DD/MM/YYYY",
+      "time_format": "HH:mm",
+      "currency": "EUR",
+      "enabled": true
+    },
+    "es": {
+      "name": "Spanish",
+      "native_name": "Español",
+      "icon": "🇪🇸",
+      "flag": "es",
+      "tts_code": "es-ES",
+      "stt_code": "es-ES",
+      "llm_locale": "es",
+      "date_format": "DD/MM/YYYY",
+      "time_format": "HH:mm",
+      "currency": "EUR",
+      "enabled": true
+    },
+    "it": {
+      "name": "Italian",
+      "native_name": "Italiano",
+      "icon": "🇮🇹",
+      "flag": "it",
+      "tts_code": "it-IT",
+      "stt_code": "it-IT",
+      "llm_locale": "it",
+      "date_format": "DD/MM/YYYY",
+      "time_format": "HH:mm",
+      "currency": "EUR",
+      "enabled": true
+    },
+    "pt": {
+      "name": "Portuguese",
+      "native_name": "Português",
+      "icon": "🇵🇹",
+      "flag": "pt",
+      "tts_code": "pt-PT",
+      "stt_code": "pt-PT",
+      "llm_locale": "pt",
+      "date_format": "DD/MM/YYYY",
+      "time_format": "HH:mm",
+      "currency": "EUR",
+      "enabled": true
+    },
+    "nl": {
+      "name": "Dutch",
+      "native_name": "Nederlands",
+      "icon": "🇳🇱",
+      "flag": "nl",
+      "tts_code": "nl-NL",
+      "stt_code": "nl-NL",
+      "llm_locale": "nl",
+      "date_format": "DD-MM-YYYY",
+      "time_format": "HH:mm",
+      "currency": "EUR",
+      "enabled": true
+    },
+    "sv": {
+      "name": "Swedish",
+      "native_name": "Svenska",
+      "icon": "🇸🇪",
+      "flag": "se",
+      "tts_code": "sv-SE",
+      "stt_code": "sv-SE",
+      "llm_locale": "sv",
+      "date_format": "YYYY-MM-DD",
+      "time_format": "HH:mm",
+      "currency": "SEK",
+      "enabled": true
+    },
+    "no": {
+      "name": "Norwegian",
+      "native_name": "Norsk",
+      "icon": "🇳🇴",
+      "flag": "no",
+      "tts_code": "nb-NO",
+      "stt_code": "nb-NO",
+      "llm_locale": "no",
+      "date_format": "DD.MM.YYYY",
+      "time_format": "HH:mm",
+      "currency": "NOK",
+      "enabled": true
+    },
+    "da": {
+      "name": "Danish",
+      "native_name": "Dansk",
+      "icon": "🇩🇰",
+      "flag": "dk",
+      "tts_code": "da-DK",
+      "stt_code": "da-DK",
+      "llm_locale": "da",
+      "date_format": "DD-MM-YYYY",
+      "time_format": "HH:mm",
+      "currency": "DKK",
+      "enabled": true
+    },
+    "fi": {
+      "name": "Finnish",
+      "native_name": "Suomi",
+      "icon": "🇫🇮",
+      "flag": "fi",
+      "tts_code": "fi-FI",
+      "stt_code": "fi-FI",
+      "llm_locale": "fi",
+      "date_format": "DD.MM.YYYY",
+      "time_format": "HH:mm",
+      "currency": "EUR",
+      "enabled": true
+    },
+    "cs": {
+      "name": "Czech",
+      "native_name": "Čeština",
+      "icon": "🇨🇿",
+      "flag": "cz",
+      "tts_code": "cs-CZ",
+      "stt_code": "cs-CZ",
+      "llm_locale": "cs",
+      "date_format": "DD.MM.YYYY",
+      "time_format": "HH:mm",
+      "currency": "CZK",
+      "enabled": true
+    },
+    "sk": {
+      "name": "Slovak",
+      "native_name": "Slovenčina",
+      "icon": "🇸🇰",
+      "flag": "sk",
+      "tts_code": "sk-SK",
+      "stt_code": "sk-SK",
+      "llm_locale": "sk",
+      "date_format": "DD.MM.YYYY",
+      "time_format": "HH:mm",
+      "currency": "EUR",
+      "enabled": true
+    },
+    "uk": {
+      "name": "Ukrainian",
+      "native_name": "Українська",
+      "icon": "🇺🇦",
+      "flag": "ua",
+      "tts_code": "uk-UA",
+      "stt_code": "uk-UA",
+      "llm_locale": "uk",
+      "date_format": "DD.MM.YYYY",
+      "time_format": "HH:mm",
+      "currency": "UAH",
+      "enabled": true
+    },
+    "ru": {
+      "name": "Russian",
+      "native_name": "Русский",
+      "icon": "🇷🇺",
+      "flag": "ru",
+      "tts_code": "ru-RU",
+      "stt_code": "ru-RU",
+      "llm_locale": "ru",
+      "date_format": "DD.MM.YYYY",
+      "time_format": "HH:mm",
+      "currency": "RUB",
+      "enabled": false
+    }
+  },
+  "default_language": "pl",
+  "fallback_language": "en",
+  "tts_settings": {
+    "rate": 1.0,
+    "pitch": 1.0,
+    "volume": 1.0
+  },
+  "stt_settings": {
+    "continuous": false,
+    "interim_results": true,
+    "max_alternatives": 1
+  },
+  "translations": {
+    "common": {
+      "hello": {
+        "pl": "Cześć",
+        "en": "Hello",
+        "de": "Hallo",
+        "fr": "Bonjour",
+        "es": "Hola",
+        "it": "Ciao"
+      },
+      "help": {
+        "pl": "Pomoc",
+        "en": "Help",
+        "de": "Hilfe",
+        "fr": "Aide",
+        "es": "Ayuda",
+        "it": "Aiuto"
+      },
+      "settings": {
+        "pl": "Ustawienia",
+        "en": "Settings",
+        "de": "Einstellungen",
+        "fr": "Paramètres",
+        "es": "Configuración",
+        "it": "Impostazioni"
+      },
+      "search": {
+        "pl": "Szukaj",
+        "en": "Search",
+        "de": "Suchen",
+        "fr": "Rechercher",
+        "es": "Buscar",
+        "it": "Cerca"
+      },
+      "loading": {
+        "pl": "Ładowanie...",
+        "en": "Loading...",
+        "de": "Laden...",
+        "fr": "Chargement...",
+        "es": "Cargando...",
+        "it": "Caricamento..."
+      },
+      "error": {
+        "pl": "Błąd",
+        "en": "Error",
+        "de": "Fehler",
+        "fr": "Erreur",
+        "es": "Error",
+        "it": "Errore"
+      },
+      "success": {
+        "pl": "Sukces",
+        "en": "Success",
+        "de": "Erfolg",
+        "fr": "Succès",
+        "es": "Éxito",
+        "it": "Successo"
+      }
+    },
+    "commands": {
+      "show": {
+        "pl": ["pokaż", "wyświetl"],
+        "en": ["show", "display"],
+        "de": ["zeigen", "anzeigen"],
+        "fr": ["montrer", "afficher"],
+        "es": ["mostrar", "ver"],
+        "it": ["mostra", "visualizza"]
+      },
+      "weather": {
+        "pl": ["pogoda"],
+        "en": ["weather"],
+        "de": ["wetter"],
+        "fr": ["météo"],
+        "es": ["tiempo", "clima"],
+        "it": ["meteo", "tempo"]
+      },
+      "documents": {
+        "pl": ["dokumenty", "faktury"],
+        "en": ["documents", "invoices"],
+        "de": ["dokumente", "rechnungen"],
+        "fr": ["documents", "factures"],
+        "es": ["documentos", "facturas"],
+        "it": ["documenti", "fatture"]
+      }
+    }
+  }
+}

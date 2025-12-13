@@ -1,0 +1,56 @@
+{
+  "registries": [
+    {
+      "id": "local",
+      "name": "Local Apps",
+      "type": "local",
+      "url": "apps/",
+      "description": "Internal apps in apps/ folder",
+      "enabled": true,
+      "auth_required": false,
+      "auth_config": {},
+      "apps": [],
+      "last_sync": null,
+      "status": "unknown"
+    },
+    {
+      "id": "dockerhub",
+      "name": "Docker Hub",
+      "type": "docker",
+      "url": "https://hub.docker.com",
+      "description": "Docker container registry",
+      "enabled": false,
+      "auth_required": false,
+      "auth_config": {},
+      "apps": [],
+      "last_sync": null,
+      "status": "unknown"
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "type": "git",
+      "url": "https://github.com",
+      "description": "GitHub repositories",
+      "enabled": false,
+      "auth_required": false,
+      "auth_config": {},
+      "apps": [],
+      "last_sync": null,
+      "status": "unknown"
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama Models",
+      "type": "http",
+      "url": "http://localhost:11434",
+      "description": "Local Ollama LLM models",
+      "enabled": true,
+      "auth_required": false,
+      "auth_config": {},
+      "apps": [],
+      "last_sync": null,
+      "status": "unknown"
+    }
+  ]
+}

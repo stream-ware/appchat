@@ -2026,6 +2026,19 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     "timestamp": datetime.now().isoformat()
                 })
             
+            elif data.get("type") == "set_language":
+                # Handle language change
+                new_lang = data.get("language", "pl")
+                language_manager.set_language(new_lang, client_id)
+                lang_config = language_manager.get_language_for_llm(client_id)
+                
+                await manager.send_message(client_id, {
+                    "type": "language_changed",
+                    "language": new_lang,
+                    "config": lang_config,
+                    "timestamp": datetime.now().isoformat()
+                })
+            
             elif data.get("type") == "action":
                 # Handle button actions (clicking on app/skill)
                 action_id = data.get("action_id")

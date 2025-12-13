@@ -1,0 +1,603 @@
+{
+  "timestamp": "2025-12-13T15:28:12.437960",
+  "total": 33,
+  "passed": 32,
+  "failed": 1,
+  "errors": [],
+  "categories": {
+    "documents": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "poka\u017c faktury",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "documents",
+              "action": "show_all",
+              "original_command": "poka\u017c faktury",
+              "confidence": 0.9281319369607444
+            },
+            "view_type": "documents",
+            "view_title": "\ud83d\udcc4 Zeskanowane dokumenty"
+          }
+        },
+        {
+          "command": "dokumenty",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "documents",
+              "action": "show_all",
+              "original_command": "dokumenty",
+              "confidence": 0.865337005845206
+            },
+            "view_type": "documents",
+            "view_title": "\ud83d\udcc4 Zeskanowane dokumenty"
+          }
+        },
+        {
+          "command": "suma faktur",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "documents",
+              "action": "sum_total",
+              "original_command": "suma faktur",
+              "confidence": 0.8771477177041048
+            },
+            "view_type": "documents",
+            "view_title": "\ud83d\udcc4 Zeskanowane dokumenty"
+          }
+        },
+        {
+          "command": "faktury do zap\u0142aty",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "documents",
+              "action": "filter_unpaid",
+              "original_command": "faktury do zap\u0142aty",
+              "confidence": 0.909531645388306
+            },
+            "view_type": "documents",
+            "view_title": "\ud83d\udcc4 Zeskanowane dokumenty"
+          }
+        }
+      ]
+    },
+    "cameras": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "poka\u017c kamery",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "cameras",
+              "action": "show_grid",
+              "original_command": "poka\u017c kamery",
+              "confidence": 0.8958019665421336
+            },
+            "view_type": "cameras",
+            "view_title": "\ud83c\udfa5 Monitoring - Podgl\u0105d kamer"
+          }
+        },
+        {
+          "command": "monitoring",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "cameras",
+              "action": "show_grid",
+              "original_command": "monitoring",
+              "confidence": 0.9518550822738007
+            },
+            "view_type": "cameras",
+            "view_title": "\ud83c\udfa5 Monitoring - Podgl\u0105d kamer"
+          }
+        },
+        {
+          "command": "alerty",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "cameras",
+              "action": "show_alerts",
+              "original_command": "alerty",
+              "confidence": 0.9122785197284135
+            },
+            "view_type": "cameras",
+            "view_title": "\ud83c\udfa5 Monitoring - Podgl\u0105d kamer"
+          }
+        }
+      ]
+    },
+    "sales": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "poka\u017c sprzeda\u017c",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "sales",
+              "action": "show_dashboard",
+              "original_command": "poka\u017c sprzeda\u017c",
+              "confidence": 0.927770527560223
+            },
+            "view_type": "sales",
+            "view_title": "\ud83d\udcca Dashboard sprzeda\u017cy"
+          }
+        },
+        {
+          "command": "raport",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "sales",
+              "action": "show_report",
+              "original_command": "raport",
+              "confidence": 0.93612327782103
+            },
+            "view_type": "sales",
+            "view_title": "\ud83d\udcca Dashboard sprzeda\u017cy"
+          }
+        },
+        {
+          "command": "top produkty",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "sales",
+              "action": "top_products",
+              "original_command": "top produkty",
+              "confidence": 0.9124024932762552
+            },
+            "view_type": "sales",
+            "view_title": "\ud83d\udcca Dashboard sprzeda\u017cy"
+          }
+        }
+      ]
+    },
+    "home": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "temperatura",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "home",
+              "action": "temperature",
+              "original_command": "temperatura",
+              "confidence": 0.8890667486034698
+            },
+            "view_type": "home",
+            "view_title": "\ud83c\udfe0 Smart Home Dashboard"
+          }
+        },
+        {
+          "command": "o\u015bwietlenie",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "home",
+              "action": "lighting",
+              "original_command": "o\u015bwietlenie",
+              "confidence": 0.9786120724248727
+            },
+            "view_type": "home",
+            "view_title": "\ud83c\udfe0 Smart Home Dashboard"
+          }
+        },
+        {
+          "command": "alarm",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "home",
+              "action": "alarm",
+              "original_command": "alarm",
+              "confidence": 0.9405167078790528
+            },
+            "view_type": "home",
+            "view_title": "\ud83c\udfe0 Smart Home Dashboard"
+          }
+        }
+      ]
+    },
+    "analytics": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "analiza",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "analytics",
+              "action": "overview",
+              "original_command": "analiza",
+              "confidence": 0.9876038988916691
+            },
+            "view_type": "analytics",
+            "view_title": "\ud83d\udcc8 Analityka i Raporty"
+          }
+        },
+        {
+          "command": "wykres",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "analytics",
+              "action": "chart",
+              "original_command": "wykres",
+              "confidence": 0.885028374138639
+            },
+            "view_type": "analytics",
+            "view_title": "\ud83d\udcc8 Analityka i Raporty"
+          }
+        },
+        {
+          "command": "anomalie",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "analytics",
+              "action": "anomalies",
+              "original_command": "anomalie",
+              "confidence": 0.886525183175257
+            },
+            "view_type": "analytics",
+            "view_title": "\ud83d\udcc8 Analityka i Raporty"
+          }
+        }
+      ]
+    },
+    "internet": {
+      "passed": 4,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "pogoda",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "internet",
+              "action": "weather",
+              "original_command": "pogoda",
+              "confidence": 0.9880659227484889
+            },
+            "view_type": "internet",
+            "view_title": "\ud83c\udf24\ufe0f Pogoda - Warszawa",
+            "has_data": {
+              "success": true,
+              "city": "Warszawa",
+              "temperature": 6.1,
+              "windspeed": 9.7,
+              "winddirection": 238,
+              "weathercode": 3,
+              "time": "2025-12-13T15:15",
+              "description": "Pochmurno"
+            }
+          }
+        },
+        {
+          "command": "bitcoin",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "internet",
+              "action": "crypto",
+              "original_command": "bitcoin",
+              "confidence": 0.9014169704705598
+            },
+            "view_type": "internet",
+            "view_title": "\ud83d\udcb0 Kryptowaluty",
+            "has_data": {
+              "bitcoin": {
+                "success": false,
+                "error": "'NoneType' object has no attribute 'get'"
+              },
+              "ethereum": {
+                "success": false,
+                "error": "'NoneType' object has no attribute 'get'"
+              }
+            }
+          }
+        },
+        {
+          "command": "rss",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "internet",
+              "action": "rss",
+              "original_command": "rss",
+              "confidence": 0.9622698121043961
+            },
+            "view_type": "internet",
+            "view_title": "\ud83d\udcf0 Kana\u0142y RSS",
+            "has_data": [
+              {
+                "label": "Kana\u0142y",
+                "value": 3,
+                "icon": "\ud83d\udcf0"
+              },
+              {
+                "label": "Artyku\u0142y",
+                "value": 30,
+                "icon": "\ud83d\udcc4"
+              }
+            ]
+          }
+        },
+        {
+          "command": "integracje",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "internet",
+              "action": "integrations",
+              "original_command": "integracje",
+              "confidence": 0.8500994208329974
+            },
+            "view_type": "internet",
+            "view_title": "\ud83c\udf10 Integracje internetowe",
+            "has_data": [
+              {
+                "label": "HTTP",
+                "value": "inactive",
+                "icon": "\ud83c\udf10"
+              },
+              {
+                "label": "MQTT",
+                "value": "\u2713",
+                "icon": "\ud83d\udce1"
+              },
+              {
+                "label": "Email",
+                "value": "\u2713",
+                "icon": "\ud83d\udce7"
+              },
+              {
+                "label": "RSS",
+                "value": 3,
+                "icon": "\ud83d\udcf0"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "system": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "pomoc",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "system",
+              "action": "help",
+              "original_command": "pomoc",
+              "confidence": 0.9843487840795362
+            },
+            "view_type": "system",
+            "view_title": "\u2753 Pomoc - 85+ dost\u0119pnych komend"
+          }
+        },
+        {
+          "command": "status",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "system",
+              "action": "status",
+              "original_command": "status",
+              "confidence": 0.8786613707632973
+            },
+            "view_type": "welcome",
+            "view_title": "\ud83d\ude80 Streamware Dashboard"
+          }
+        },
+        {
+          "command": "start",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "system",
+              "action": "welcome",
+              "original_command": "start",
+              "confidence": 0.8724318881719737
+            },
+            "view_type": "welcome",
+            "view_title": "\ud83d\ude80 Streamware Dashboard"
+          }
+        }
+      ]
+    },
+    "services": {
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "us\u0142ugi",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "services",
+              "action": "list",
+              "original_command": "us\u0142ugi",
+              "confidence": 0.9585023733629007
+            },
+            "view_type": "services",
+            "view_title": "\ud83d\udd27 System Services"
+          }
+        },
+        {
+          "command": "docker",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "services",
+              "action": "docker",
+              "original_command": "docker",
+              "confidence": 0.8654186512491028
+            },
+            "view_type": "services",
+            "view_title": "\ud83d\udd27 System Services"
+          }
+        }
+      ]
+    },
+    "monitoring": {
+      "passed": 3,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "cpu",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "monitoring",
+              "action": "cpu",
+              "original_command": "cpu",
+              "confidence": 0.9533865774414179
+            },
+            "view_type": "monitoring",
+            "view_title": "\ud83d\udcca System Monitor"
+          }
+        },
+        {
+          "command": "pami\u0119\u0107",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "monitoring",
+              "action": "memory",
+              "original_command": "pami\u0119\u0107",
+              "confidence": 0.8797411086962682
+            },
+            "view_type": "monitoring",
+            "view_title": "\ud83d\udcca System Monitor"
+          }
+        },
+        {
+          "command": "dysk",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "monitoring",
+              "action": "disk",
+              "original_command": "dysk",
+              "confidence": 0.8630029905195825
+            },
+            "view_type": "monitoring",
+            "view_title": "\ud83d\udcca System Monitor"
+          }
+        }
+      ]
+    },
+    "backup": {
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        {
+          "command": "backup",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "backup",
+              "action": "create",
+              "original_command": "backup",
+              "confidence": 0.8708551011862782
+            },
+            "view_type": "backup",
+            "view_title": "\ud83d\udcbe Backup Manager"
+          }
+        },
+        {
+          "command": "lista kopii",
+          "success": true,
+          "details": {
+            "success": true,
+            "intent": {
+              "recognized": true,
+              "app_type": "backup",
+              "action": "list",
+              "original_command": "lista kopii",
+              "confidence": 0.9415909900956061
+            },
+            "view_type": "backup",
+            "view_title": "\ud83d\udcbe Backup Manager"
+          }
+        }
+      ]
+    }
+  }
+}
