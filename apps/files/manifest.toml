@@ -1,0 +1,35 @@
+[app]
+id = "files"
+name = "📁 File Manager"
+version = "1.0.0"
+description = "Access and manage user files in ~/Documents and allowed directories"
+author = "Streamware"
+enabled = true
+
+[permissions]
+requires = ["filesystem"]
+role = "user"
+
+[commands]
+"pokaż pliki" = "list"
+"moje dokumenty" = "documents"
+"pobrane" = "downloads"
+"znajdź plik" = "search"
+"otwórz" = "open"
+"informacje o pliku" = "info"
+"rozmiar folderu" = "size"
+"ostatnie pliki" = "recent"
+
+[keywords]
+match = ["plik", "folder", "dokument", "katalog", "directory", "file", "document"]
+
+[scripts]
+file_manager = "scripts/file_manager.py"
+
+[ui]
+icon = "📁"
+color = "#fbbf24"
+
+[settings]
+allowed_dirs = ["~/Documents", "~/Downloads", "~/Pictures"]
+max_file_size = "100MB"

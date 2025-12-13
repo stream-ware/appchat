@@ -1,0 +1,29 @@
+# CLOUD STORAGE - Makefile.admin
+.PHONY: help setup-onedrive setup-nextcloud setup-gdrive connect disconnect sync
+
+help:
+	@echo "☁️ Cloud Storage - Admin Commands"
+	@echo "  setup-onedrive  - Configure OneDrive"
+	@echo "  setup-nextcloud - Configure Nextcloud"
+	@echo "  setup-gdrive    - Configure Google Drive"
+	@echo "  connect PROVIDER=x - Connect provider"
+	@echo "  disconnect PROVIDER=x - Disconnect provider"
+	@echo "  sync            - Force sync all folders"
+
+setup-onedrive:
+	@python3 scripts/cloud_manager.py connect onedrive
+
+setup-nextcloud:
+	@python3 scripts/cloud_manager.py connect nextcloud
+
+setup-gdrive:
+	@python3 scripts/cloud_manager.py connect gdrive
+
+connect:
+	@python3 scripts/cloud_manager.py connect $(PROVIDER)
+
+disconnect:
+	@python3 scripts/cloud_manager.py disconnect $(PROVIDER)
+
+sync:
+	@python3 scripts/sync.py --all

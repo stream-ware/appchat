@@ -1,0 +1,36 @@
+# FILES - Makefile.user
+.PHONY: help list documents downloads search info recent size
+
+help:
+	@echo "📁 File Manager - User Commands"
+	@echo "  list PATH=x    - List files in directory"
+	@echo "  documents      - List ~/Documents"
+	@echo "  downloads      - List ~/Downloads"
+	@echo "  search PATTERN=x - Search for files"
+	@echo "  info PATH=x    - File information"
+	@echo "  recent         - Recently modified files"
+	@echo "  size PATH=x    - Folder size"
+
+list:
+	@python3 scripts/file_manager.py list $(PATH)
+
+documents:
+	@python3 scripts/file_manager.py list ~/Documents
+
+downloads:
+	@python3 scripts/file_manager.py list ~/Downloads
+
+search:
+	@python3 scripts/file_manager.py search "$(PATTERN)"
+
+info:
+	@python3 scripts/file_manager.py info "$(PATH)"
+
+recent:
+	@python3 scripts/file_manager.py recent 20
+
+size:
+	@python3 scripts/file_manager.py size "$(PATH)"
+
+query:
+	@python3 scripts/file_manager.py query $(QUERY)

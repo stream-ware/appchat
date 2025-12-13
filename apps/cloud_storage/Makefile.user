@@ -1,0 +1,17 @@
+# CLOUD STORAGE - Makefile.user
+.PHONY: help status list-providers list-files
+
+help:
+	@echo "☁️ Cloud Storage - User Commands"
+	@echo "  status         - Cloud connection status"
+	@echo "  list-providers - Show connected providers"
+	@echo "  list-files     - List cloud files"
+
+status:
+	@python3 scripts/cloud_manager.py status
+
+list-providers:
+	@python3 scripts/cloud_manager.py list
+
+list-files:
+	@python3 scripts/cloud_manager.py list-files
