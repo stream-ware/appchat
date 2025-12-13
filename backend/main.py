@@ -7,19 +7,54 @@ import asyncio
 import json
 import random
 import uuid
+import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from enum import Enum
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 
-app = FastAPI(title="Streamware MVP", version="0.1.0")
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+
+LOGS_DIR = Path("logs")
+LOGS_DIR.mkdir(exist_ok=True)
+
+# Configure logging with detailed format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(LOGS_DIR / "streamware.log", encoding='utf-8')
+    ]
+)
+
+logger = logging.getLogger("streamware")
+logger.setLevel(logging.DEBUG)
+
+# Conversation logger
+conv_logger = logging.getLogger("conversations")
+conv_handler = logging.FileHandler(LOGS_DIR / "conversations.log", encoding='utf-8')
+conv_handler.setFormatter(logging.Formatter('%(asctime)s | %(message)s'))
+conv_logger.addHandler(conv_handler)
+conv_logger.setLevel(logging.INFO)
+
+app = FastAPI(title="Streamware MVP", version="0.2.0", description="Voice-Controlled Dashboard Platform with Dynamic LLM-based Views")
+
+logger.info("="*60)
+logger.info("🚀 STREAMWARE MVP v0.2.0 Starting...")
+logger.info("="*60)
 
 app.add_middleware(
     CORSMiddleware,
@@ -180,11 +215,12 @@ class DataSimulator:
 class VoiceCommandProcessor:
     """
     Processes voice commands and determines appropriate response/view
-    Simulates intent recognition without actual LLM
+    Supports 50+ use cases for office, home, and security applications
     """
     
+    # ========== 50+ USE CASES ==========
     INTENTS = {
-        # Document commands
+        # === BIURO / OFFICE (15 cases) ===
         "pokaż faktury": ("documents", "show_all"),
         "zeskanuj fakturę": ("documents", "scan_new"),
         "ile faktur": ("documents", "count"),
@@ -193,8 +229,29 @@ class VoiceCommandProcessor:
         "znajdź fakturę": ("documents", "search"),
         "dokumenty": ("documents", "show_all"),
         "faktury": ("documents", "show_all"),
+        "umowy": ("documents", "contracts"),
+        "przeterminowane": ("documents", "overdue"),
+        "eksportuj do excel": ("documents", "export_excel"),
+        "wyślij przypomnienie": ("documents", "send_reminder"),
+        "archiwum": ("documents", "archive"),
+        "ostatnie skany": ("documents", "recent_scans"),
+        "statystyki dokumentów": ("documents", "stats"),
         
-        # Camera commands
+        # === SPRZEDAŻ / SALES (12 cases) ===
+        "sprzedaż": ("sales", "show_dashboard"),
+        "pokaż sprzedaż": ("sales", "show_dashboard"),
+        "raport": ("sales", "show_report"),
+        "porównaj regiony": ("sales", "compare_regions"),
+        "top produkty": ("sales", "top_products"),
+        "trend": ("sales", "show_trend"),
+        "kpi": ("sales", "kpi_dashboard"),
+        "cele sprzedażowe": ("sales", "targets"),
+        "prowizje": ("sales", "commissions"),
+        "prognoza": ("sales", "forecast"),
+        "konwersja": ("sales", "conversion"),
+        "lejek sprzedaży": ("sales", "funnel"),
+        
+        # === MONITORING / SECURITY (15 cases) ===
         "pokaż kamery": ("cameras", "show_grid"),
         "monitoring": ("cameras", "show_grid"),
         "kamera": ("cameras", "show_single"),
@@ -202,29 +259,65 @@ class VoiceCommandProcessor:
         "alerty": ("cameras", "show_alerts"),
         "nagraj": ("cameras", "record"),
         "ile osób": ("cameras", "count_people"),
+        "parking": ("cameras", "parking"),
+        "wejście": ("cameras", "entrance"),
+        "magazyn": ("cameras", "warehouse"),
+        "strefa zastrzeżona": ("cameras", "restricted"),
+        "nocny tryb": ("cameras", "night_mode"),
+        "wykryj twarz": ("cameras", "face_detection"),
+        "historia nagrań": ("cameras", "recordings"),
+        "mapa ciepła": ("cameras", "heatmap"),
         
-        # Sales commands
-        "sprzedaż": ("sales", "show_dashboard"),
-        "pokaż sprzedaż": ("sales", "show_dashboard"),
-        "raport": ("sales", "show_report"),
-        "porównaj regiony": ("sales", "compare_regions"),
-        "top produkty": ("sales", "top_products"),
-        "trend": ("sales", "show_trend"),
+        # === DOM / HOME (10 cases) ===
+        "temperatura": ("home", "temperature"),
+        "oświetlenie": ("home", "lighting"),
+        "energia": ("home", "energy"),
+        "zużycie prądu": ("home", "power_usage"),
+        "ogrzewanie": ("home", "heating"),
+        "klimatyzacja": ("home", "ac"),
+        "rolety": ("home", "blinds"),
+        "alarm": ("home", "alarm"),
+        "czujniki": ("home", "sensors"),
+        "harmonogram": ("home", "schedule"),
         
-        # System commands
+        # === ANALITYKA / ANALYTICS (8 cases) ===
+        "analiza": ("analytics", "overview"),
+        "wykres": ("analytics", "chart"),
+        "porównanie": ("analytics", "compare"),
+        "raport dzienny": ("analytics", "daily_report"),
+        "raport tygodniowy": ("analytics", "weekly_report"),
+        "raport miesięczny": ("analytics", "monthly_report"),
+        "anomalie": ("analytics", "anomalies"),
+        "predykcja": ("analytics", "prediction"),
+        
+        # === SYSTEM (5 cases) ===
         "pomoc": ("system", "help"),
         "wyczyść": ("system", "clear"),
         "status": ("system", "status"),
+        "ustawienia": ("system", "settings"),
+        "historia": ("system", "history"),
+    }
+    
+    # Keywords for fuzzy matching
+    KEYWORDS = {
+        "documents": ["faktur", "dokument", "skan", "umow", "pdf", "plik"],
+        "cameras": ["kamer", "monitor", "wideo", "obraz", "nagr", "cctv"],
+        "sales": ["sprzeda", "raport", "kpi", "wynik", "przychod", "zysk"],
+        "home": ["dom", "temp", "światł", "prąd", "ogrzew", "klima"],
+        "analytics": ["anali", "wykres", "statyst", "trend", "porówn"],
+        "security": ["alarm", "bezpiecz", "dostęp", "strefa", "intruz"],
     }
     
     @classmethod
     def process(cls, command: str) -> Dict[str, Any]:
         """Process voice command and return intent + parameters"""
         command_lower = command.lower().strip()
+        logger.info(f"📝 Processing command: '{command}'")
         
         # Find matching intent
         for pattern, (app_type, action) in cls.INTENTS.items():
             if pattern in command_lower:
+                logger.info(f"✅ Matched intent: {app_type}/{action} (pattern: '{pattern}')")
                 return {
                     "recognized": True,
                     "app_type": app_type,
@@ -233,17 +326,19 @@ class VoiceCommandProcessor:
                     "confidence": random.uniform(0.85, 0.99)
                 }
         
-        # Default - try to guess
-        if any(word in command_lower for word in ["faktur", "dokument", "skan"]):
-            return {"recognized": True, "app_type": "documents", "action": "show_all", 
-                    "original_command": command, "confidence": 0.7}
-        if any(word in command_lower for word in ["kamer", "monitor", "wideo", "obraz"]):
-            return {"recognized": True, "app_type": "cameras", "action": "show_grid",
-                    "original_command": command, "confidence": 0.7}
-        if any(word in command_lower for word in ["sprzeda", "raport", "kpi", "wynik"]):
-            return {"recognized": True, "app_type": "sales", "action": "show_dashboard",
-                    "original_command": command, "confidence": 0.7}
+        # Fuzzy matching using keywords
+        for app_type, keywords in cls.KEYWORDS.items():
+            if any(word in command_lower for word in keywords):
+                logger.info(f"🔍 Fuzzy match: {app_type} (keyword match)")
+                return {
+                    "recognized": True, 
+                    "app_type": app_type, 
+                    "action": "show_all",
+                    "original_command": command, 
+                    "confidence": 0.7
+                }
         
+        logger.warning(f"❓ Unrecognized command: '{command}'")
         return {
             "recognized": False,
             "app_type": "system",
@@ -257,11 +352,12 @@ class VoiceCommandProcessor:
 # ============================================================================
 
 class ViewGenerator:
-    """Generates dynamic dashboard views based on app type and action"""
+    """Generates dynamic dashboard views based on app type and action - LLM-ready"""
     
     @classmethod
     def generate(cls, app_type: str, action: str, data: Any = None) -> Dict[str, Any]:
-        """Generate view configuration for frontend"""
+        """Generate view configuration for frontend - supports dynamic LLM generation"""
+        logger.debug(f"🎨 Generating view: {app_type}/{action}")
         
         if app_type == "documents":
             return cls._generate_documents_view(action, data)
@@ -269,6 +365,10 @@ class ViewGenerator:
             return cls._generate_cameras_view(action, data)
         elif app_type == "sales":
             return cls._generate_sales_view(action, data)
+        elif app_type == "home":
+            return cls._generate_home_view(action, data)
+        elif app_type == "analytics":
+            return cls._generate_analytics_view(action, data)
         elif app_type == "system":
             return cls._generate_system_view(action)
         else:
@@ -395,26 +495,119 @@ class ViewGenerator:
         }
     
     @classmethod
+    def _generate_home_view(cls, action: str, data: Any = None) -> Dict:
+        """Generate smart home dashboard"""
+        rooms = ["Salon", "Sypialnia", "Kuchnia", "Łazienka", "Biuro"]
+        
+        sensors_data = []
+        for room in rooms:
+            sensors_data.append({
+                "room": room,
+                "temperature": round(random.uniform(18, 26), 1),
+                "humidity": random.randint(30, 70),
+                "light_on": random.choice([True, False]),
+                "motion": random.choice([True, False, False, False]),
+            })
+        
+        total_power = round(random.uniform(1.5, 8.5), 2)
+        
+        return {
+            "type": "home",
+            "view": "smart_home",
+            "title": "🏠 Smart Home Dashboard",
+            "subtitle": f"Temperatura średnia: {sum(s['temperature'] for s in sensors_data)/len(sensors_data):.1f}°C | Zużycie: {total_power} kW",
+            "rooms": sensors_data,
+            "stats": [
+                {"label": "Śr. temperatura", "value": f"{sum(s['temperature'] for s in sensors_data)/len(sensors_data):.1f}°C", "icon": "🌡️"},
+                {"label": "Zużycie energii", "value": f"{total_power} kW", "icon": "⚡"},
+                {"label": "Światła włączone", "value": sum(1 for s in sensors_data if s['light_on']), "icon": "💡"},
+                {"label": "Wykryty ruch", "value": sum(1 for s in sensors_data if s['motion']), "icon": "🚶"},
+            ],
+            "actions": [
+                {"id": "all_lights_off", "label": "Wyłącz światła", "icon": "🌙"},
+                {"id": "eco_mode", "label": "Tryb eco", "icon": "🌿"},
+                {"id": "schedule", "label": "Harmonogram", "icon": "📅"},
+            ]
+        }
+    
+    @classmethod
+    def _generate_analytics_view(cls, action: str, data: Any = None) -> Dict:
+        """Generate analytics dashboard"""
+        days = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Ndz"]
+        weekly_data = [random.randint(50, 200) for _ in days]
+        
+        return {
+            "type": "analytics",
+            "view": "analytics_dashboard",
+            "title": "📈 Analityka i Raporty",
+            "subtitle": f"Ostatnie 7 dni | Suma: {sum(weekly_data)} zdarzeń",
+            "chart": {
+                "type": "line",
+                "labels": days,
+                "datasets": [{
+                    "label": "Aktywność",
+                    "data": weekly_data,
+                    "borderColor": "#3b82f6",
+                    "fill": True
+                }]
+            },
+            "metrics": [
+                {"name": "Konwersja", "value": f"{random.uniform(2, 8):.1f}%", "change": f"+{random.uniform(0.1, 1.5):.1f}%"},
+                {"name": "Czas sesji", "value": f"{random.randint(2, 8)}m {random.randint(0, 59)}s", "change": f"+{random.randint(5, 30)}s"},
+                {"name": "Bounce rate", "value": f"{random.uniform(20, 50):.1f}%", "change": f"-{random.uniform(1, 5):.1f}%"},
+            ],
+            "stats": [
+                {"label": "Suma zdarzeń", "value": sum(weekly_data), "icon": "📊"},
+                {"label": "Średnia dzienna", "value": round(sum(weekly_data)/7), "icon": "📈"},
+                {"label": "Max", "value": max(weekly_data), "icon": "🔝"},
+                {"label": "Min", "value": min(weekly_data), "icon": "🔻"},
+            ],
+            "actions": [
+                {"id": "export_report", "label": "Eksportuj raport", "icon": "📄"},
+                {"id": "set_alerts", "label": "Ustaw alerty", "icon": "🔔"},
+                {"id": "compare", "label": "Porównaj okresy", "icon": "⚖️"},
+            ]
+        }
+    
+    @classmethod
     def _generate_system_view(cls, action: str) -> Dict:
         if action == "help":
             return {
                 "type": "system",
                 "view": "help",
-                "title": "❓ Pomoc - Dostępne komendy",
+                "title": "❓ Pomoc - 50+ dostępnych komend",
                 "commands": [
-                    {"category": "Dokumenty", "commands": [
-                        "pokaż faktury", "zeskanuj fakturę", "ile faktur", "suma faktur"
+                    {"category": "📄 Dokumenty (15)", "commands": [
+                        "pokaż faktury", "zeskanuj fakturę", "ile faktur", "suma faktur",
+                        "umowy", "przeterminowane", "eksportuj do excel", "archiwum"
                     ]},
-                    {"category": "Kamery", "commands": [
-                        "pokaż kamery", "monitoring", "gdzie ruch", "alerty"
+                    {"category": "🎥 Monitoring (15)", "commands": [
+                        "pokaż kamery", "monitoring", "gdzie ruch", "alerty",
+                        "parking", "magazyn", "mapa ciepła", "historia nagrań"
                     ]},
-                    {"category": "Sprzedaż", "commands": [
-                        "pokaż sprzedaż", "raport", "porównaj regiony", "trend"
+                    {"category": "📊 Sprzedaż (12)", "commands": [
+                        "pokaż sprzedaż", "raport", "porównaj regiony", "trend",
+                        "kpi", "prognoza", "lejek sprzedaży", "prowizje"
                     ]},
-                    {"category": "System", "commands": [
-                        "pomoc", "wyczyść", "status"
+                    {"category": "🏠 Smart Home (10)", "commands": [
+                        "temperatura", "oświetlenie", "energia", "zużycie prądu",
+                        "ogrzewanie", "klimatyzacja", "alarm", "czujniki"
+                    ]},
+                    {"category": "📈 Analityka (8)", "commands": [
+                        "analiza", "wykres", "raport dzienny", "raport tygodniowy",
+                        "anomalie", "predykcja", "porównanie"
+                    ]},
+                    {"category": "⚙️ System (5)", "commands": [
+                        "pomoc", "wyczyść", "status", "ustawienia", "historia"
                     ]},
                 ]
+            }
+        elif action == "history":
+            return {
+                "type": "system",
+                "view": "history",
+                "title": "📜 Historia konwersacji",
+                "message": "Historia jest zapisywana w logs/conversations.log"
             }
         else:
             return cls._generate_empty_view()
@@ -424,8 +617,8 @@ class ViewGenerator:
         return {
             "type": "empty",
             "view": "welcome",
-            "title": "👋 Witaj w Streamware",
-            "message": "Powiedz komendę głosową lub wpisz w chat, np.:\n• 'Pokaż faktury'\n• 'Monitoring kamer'\n• 'Sprzedaż w tym miesiącu'"
+            "title": "👋 Witaj w Streamware v0.2",
+            "message": "Powiedz komendę głosową lub wpisz w chat. Obsługuję 50+ komend:\n• 'Pokaż faktury' - dokumenty biurowe\n• 'Monitoring' - kamery bezpieczeństwa\n• 'Sprzedaż' - dashboard KPI\n• 'Temperatura' - smart home\n• 'Analiza' - raporty i wykresy\n• 'Pomoc' - lista wszystkich komend"
         }
 
 # ============================================================================
@@ -449,6 +642,10 @@ class ResponseGenerator:
             return cls._cameras_response(action, view_data)
         elif app_type == "sales":
             return cls._sales_response(action, view_data)
+        elif app_type == "home":
+            return cls._home_response(action, view_data)
+        elif app_type == "analytics":
+            return cls._analytics_response(action, view_data)
         elif app_type == "system":
             return cls._system_response(action)
         
@@ -463,6 +660,9 @@ class ResponseGenerator:
             "scan_new": "Aktywuję skanowanie. Połóż dokument i powiedz 'zeskanuj' gdy będziesz gotowy.",
             "count": f"Masz {stats.get('Dokumentów', 0)} zeskanowanych dokumentów od {stats.get('Dostawców', 0)} dostawców.",
             "sum_total": f"Łączna suma dokumentów to {stats.get('Suma brutto', '0 PLN')}.",
+            "contracts": "Wyświetlam umowy i kontrakty.",
+            "overdue": "Wyświetlam przeterminowane dokumenty.",
+            "export_excel": "Eksportuję dokumenty do Excel.",
         }
         return responses.get(action, f"Wyświetlam dokumenty. Znaleziono {stats.get('Dokumentów', 0)} pozycji.")
     
@@ -474,6 +674,11 @@ class ResponseGenerator:
             "show_grid": f"Wyświetlam podgląd kamer. {stats.get('Kamery online', '0/0')} online. Wykryto {stats.get('Wykryte obiekty', 0)} obiektów. {stats.get('Aktywne alerty', 0)} aktywnych alertów.",
             "show_motion": f"Ostatni ruch wykryty o {stats.get('Ostatni ruch', '-')}. Aktualnie wykrytych obiektów: {stats.get('Wykryte obiekty', 0)}.",
             "show_alerts": f"Masz {stats.get('Aktywne alerty', 0)} aktywnych alertów.",
+            "parking": "Wyświetlam kamery parkingu.",
+            "entrance": "Wyświetlam kamerę wejścia głównego.",
+            "warehouse": "Wyświetlam kamery magazynu.",
+            "heatmap": "Generuję mapę ciepła ruchu.",
+            "recordings": "Wyświetlam historię nagrań.",
         }
         return responses.get(action, "Wyświetlam monitoring kamer.")
     
@@ -484,15 +689,48 @@ class ResponseGenerator:
         responses = {
             "show_dashboard": f"Wyświetlam dashboard sprzedaży. Suma sprzedaży wynosi {stats.get('Suma sprzedaży', '0 PLN')}. Zrealizowano {stats.get('Transakcji', 0)} transakcji. Średni wzrost: {stats.get('Śr. wzrost', '0%')}.",
             "compare_regions": f"Porównuję {stats.get('Regionów', 0)} regionów. Najlepszy wynik ma Warszawa.",
+            "kpi_dashboard": "Wyświetlam dashboard KPI.",
+            "forecast": "Generuję prognozę sprzedaży.",
+            "funnel": "Wyświetlam lejek sprzedażowy.",
         }
         return responses.get(action, "Wyświetlam dane sprzedażowe.")
     
     @classmethod
+    def _home_response(cls, action: str, view: Dict) -> str:
+        stats = {s["label"]: s["value"] for s in view.get("stats", [])}
+        
+        responses = {
+            "temperature": f"Temperatura w domu: {stats.get('Śr. temperatura', '21°C')}.",
+            "lighting": f"Włączonych świateł: {stats.get('Światła włączone', 0)}.",
+            "energy": f"Aktualne zużycie energii: {stats.get('Zużycie energii', '0 kW')}.",
+            "power_usage": f"Zużycie prądu: {stats.get('Zużycie energii', '0 kW')}.",
+            "show_all": f"Smart Home: temperatura {stats.get('Śr. temperatura', '21°C')}, zużycie {stats.get('Zużycie energii', '0 kW')}.",
+        }
+        return responses.get(action, f"Wyświetlam dashboard Smart Home. Temperatura: {stats.get('Śr. temperatura', '21°C')}.")
+    
+    @classmethod
+    def _analytics_response(cls, action: str, view: Dict) -> str:
+        stats = {s["label"]: s["value"] for s in view.get("stats", [])}
+        
+        responses = {
+            "overview": f"Wyświetlam analitykę. Suma zdarzeń: {stats.get('Suma zdarzeń', 0)}, średnia dzienna: {stats.get('Średnia dzienna', 0)}.",
+            "daily_report": "Generuję raport dzienny.",
+            "weekly_report": "Generuję raport tygodniowy.",
+            "monthly_report": "Generuję raport miesięczny.",
+            "anomalies": "Analizuję anomalie w danych.",
+            "prediction": "Generuję predykcję na podstawie danych historycznych.",
+            "show_all": f"Analityka: {stats.get('Suma zdarzeń', 0)} zdarzeń w ostatnim tygodniu.",
+        }
+        return responses.get(action, f"Wyświetlam dashboard analityczny. Suma zdarzeń: {stats.get('Suma zdarzeń', 0)}.")
+    
+    @classmethod
     def _system_response(cls, action: str) -> str:
         responses = {
-            "help": "Wyświetlam dostępne komendy. Możesz sterować dokumentami, kamerami i dashboardem sprzedaży.",
+            "help": "Wyświetlam 50+ dostępnych komend. Obsługuję dokumenty, kamery, sprzedaż, smart home i analitykę.",
             "clear": "Czyszczę widok.",
             "status": "System działa prawidłowo. Wszystkie komponenty aktywne.",
+            "history": "Wyświetlam historię konwersacji.",
+            "settings": "Otwieram ustawienia systemu.",
         }
         return responses.get(action, "OK.")
 
@@ -501,10 +739,11 @@ class ResponseGenerator:
 # ============================================================================
 
 class SessionManager:
-    """Manages user sessions and state"""
+    """Manages user sessions, conversation history, and logging"""
     
     def __init__(self):
         self.sessions: Dict[str, Dict] = {}
+        logger.info("📋 SessionManager initialized")
     
     def create_session(self, session_id: str) -> Dict:
         self.sessions[session_id] = {
@@ -512,24 +751,74 @@ class SessionManager:
             "created_at": datetime.now().isoformat(),
             "current_app": None,
             "history": [],
+            "conversation": [],  # Full conversation log
             "data_cache": {}
         }
+        logger.info(f"🆕 Session created: {session_id[:8]}...")
+        conv_logger.info(f"SESSION_START | {session_id}")
         return self.sessions[session_id]
     
     def get_session(self, session_id: str) -> Optional[Dict]:
         return self.sessions.get(session_id)
     
-    def update_session(self, session_id: str, app_type: str, command: str):
+    def update_session(self, session_id: str, app_type: str, command: str, response: str = ""):
         if session_id in self.sessions:
             self.sessions[session_id]["current_app"] = app_type
-            self.sessions[session_id]["history"].append({
+            
+            entry = {
                 "command": command,
+                "response": response,
                 "app": app_type,
                 "timestamp": datetime.now().isoformat()
-            })
+            }
+            self.sessions[session_id]["history"].append(entry)
+            self.sessions[session_id]["conversation"].append(entry)
+            
+            # Log conversation
+            conv_logger.info(f"USER | {session_id[:8]} | {command}")
+            conv_logger.info(f"BOT  | {session_id[:8]} | {response[:100]}...")
+            logger.debug(f"💬 Session {session_id[:8]}: {app_type}/{command[:30]}...")
+    
+    def get_conversation(self, session_id: str) -> List[Dict]:
+        """Get full conversation history for a session"""
+        if session_id in self.sessions:
+            return self.sessions[session_id].get("conversation", [])
+        return []
+    
+    def export_conversation(self, session_id: str) -> str:
+        """Export conversation as formatted text"""
+        conv = self.get_conversation(session_id)
+        if not conv:
+            return "Brak historii konwersacji."
+        
+        lines = [f"=== Konwersacja {session_id[:8]} ===\n"]
+        for entry in conv:
+            lines.append(f"[{entry['timestamp']}]")
+            lines.append(f"👤 User: {entry['command']}")
+            lines.append(f"🤖 Bot: {entry['response']}\n")
+        return "\n".join(lines)
     
     def remove_session(self, session_id: str):
+        if session_id in self.sessions:
+            conv_logger.info(f"SESSION_END | {session_id} | {len(self.sessions[session_id].get('history', []))} messages")
+            logger.info(f"🔚 Session ended: {session_id[:8]}...")
         self.sessions.pop(session_id, None)
+    
+    def get_stats(self) -> Dict:
+        """Get session statistics"""
+        return {
+            "active_sessions": len(self.sessions),
+            "total_messages": sum(len(s.get("history", [])) for s in self.sessions.values()),
+            "sessions": [
+                {
+                    "id": sid[:8],
+                    "messages": len(s.get("history", [])),
+                    "current_app": s.get("current_app"),
+                    "created_at": s.get("created_at")
+                }
+                for sid, s in self.sessions.items()
+            ]
+        }
 
 session_manager = SessionManager()
 
@@ -603,8 +892,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 # Generate response
                 response_text = ResponseGenerator.generate(intent, view_data)
                 
-                # Update session
-                session_manager.update_session(client_id, intent["app_type"], command)
+                # Update session with response
+                session_manager.update_session(client_id, intent["app_type"], command, response_text)
                 
                 # Send response
                 await manager.send_message(client_id, {
@@ -656,6 +945,7 @@ async def camera_stream(camera_id: str):
 @app.post("/api/command")
 async def process_command(command: Dict):
     text = command.get("text", "")
+    logger.info(f"📨 REST command: {text}")
     intent = VoiceCommandProcessor.process(text)
     view_data = ViewGenerator.generate(intent["app_type"], intent["action"])
     response_text = ResponseGenerator.generate(intent, view_data)
@@ -666,8 +956,55 @@ async def process_command(command: Dict):
         "view": view_data
     }
 
+# Session and conversation endpoints
+@app.get("/api/sessions")
+async def get_sessions():
+    """Get all active sessions and statistics"""
+    return session_manager.get_stats()
+
+@app.get("/api/conversation/{session_id}")
+async def get_conversation(session_id: str):
+    """Get conversation history for a session"""
+    conv = session_manager.get_conversation(session_id)
+    return {"session_id": session_id, "conversation": conv}
+
+@app.get("/api/conversation/{session_id}/export")
+async def export_conversation(session_id: str):
+    """Export conversation as text"""
+    text = session_manager.export_conversation(session_id)
+    return {"session_id": session_id, "export": text}
+
+@app.get("/api/commands")
+async def list_commands():
+    """List all available commands (50+)"""
+    return {
+        "total_commands": len(VoiceCommandProcessor.INTENTS),
+        "categories": {
+            "office": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "documents"],
+            "security": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "cameras"],
+            "sales": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "sales"],
+            "home": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "home"],
+            "analytics": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "analytics"],
+            "system": [k for k, v in VoiceCommandProcessor.INTENTS.items() if v[0] == "system"],
+        }
+    }
+
+@app.get("/api/logs")
+async def get_logs():
+    """Get recent log entries"""
+    log_file = LOGS_DIR / "streamware.log"
+    if log_file.exists():
+        with open(log_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()[-50:]  # Last 50 lines
+        return {"logs": lines}
+    return {"logs": []}
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
+logger.info("✅ All API endpoints registered")
+logger.info(f"📊 Available commands: {len(VoiceCommandProcessor.INTENTS)}")
+
 if __name__ == "__main__":
+    logger.info("🌐 Starting server on http://0.0.0.0:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)

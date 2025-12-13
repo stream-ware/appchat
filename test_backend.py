@@ -8,7 +8,7 @@ import sys
 import os
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.dirname(__file__))
 
 from backend.main import (
     VoiceCommandProcessor,
@@ -183,7 +183,7 @@ class TestViewGenerator:
         assert view["type"] == "system"
         assert view["view"] == "help"
         assert "commands" in view
-        assert len(view["commands"]) == 4  # 4 categories
+        assert len(view["commands"]) == 6  # 6 categories: documents, cameras, sales, home, analytics, system
     
     def test_generate_empty_view(self):
         """Test empty/welcome view generation"""

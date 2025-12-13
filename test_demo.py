@@ -21,8 +21,8 @@ except ImportError:
     import websockets
 
 
-BASE_URL = "http://localhost:8000"
-WS_URL = "ws://localhost:8000"
+BASE_URL = "http://localhost:8765"
+WS_URL = "ws://localhost:8765"
 
 
 class StreamwareDemo:
