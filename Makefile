@@ -2,7 +2,7 @@
 # STREAMWARE MVP - Makefile
 # ============================================================
 
-.PHONY: help install dev prod test test-e2e lint format clean docker-build docker-up docker-down
+.PHONY: help install dev prod stop kill-port test test-e2e lint format clean docker-build docker-up docker-down
 
 # Default target
 help:
@@ -11,8 +11,11 @@ help:
 	@echo "╚═══════════════════════════════════════════════════════════════╝"
 	@echo ""
 	@echo "  make install     - Install dependencies"
+	@echo "  make install-dev - Install with dev dependencies"
+	@echo "  make test-install- Test that installation works"
 	@echo "  make dev         - Run development server (hot reload)"
 	@echo "  make prod        - Run production server"
+	@echo "  make stop        - Stop all streamware servers"
 	@echo "  make test        - Run unit/integration tests"
 	@echo "  make test-e2e    - Run E2E tests with Playwright"
 	@echo "  make lint        - Check code style"
@@ -34,8 +37,22 @@ install:
 	@echo "📦 Installing dependencies..."
 	python -m pip install --upgrade pip
 	pip install -r requirements.txt
-	pip install -r requirements-dev.txt 2>/dev/null || true
 	@echo "✅ Installation complete"
+
+install-dev: install
+	@echo "📦 Installing dev dependencies..."
+	pip install -r requirements-dev.txt
+	@echo "✅ Dev installation complete"
+
+test-install:
+	@echo "🧪 Testing installation..."
+	@python -c "import fastapi; print(f'✅ FastAPI {fastapi.__version__}')" || (echo "❌ FastAPI not installed" && exit 1)
+	@python -c "import uvicorn; print(f'✅ Uvicorn {uvicorn.__version__}')" || (echo "❌ Uvicorn not installed" && exit 1)
+	@python -c "import pydantic; print(f'✅ Pydantic {pydantic.__version__}')" || (echo "❌ Pydantic not installed" && exit 1)
+	@python -c "import websockets; print(f'✅ Websockets {websockets.__version__}')" || (echo "❌ Websockets not installed" && exit 1)
+	@python -c "import httpx; print(f'✅ HTTPX {httpx.__version__}')" || (echo "❌ HTTPX not installed" && exit 1)
+	@python -c "from backend.main import app; print('✅ Backend imports OK')" || (echo "❌ Backend import failed" && exit 1)
+	@echo "✅ All installation tests passed"
 
 install-e2e:
 	@echo "📦 Installing E2E test dependencies..."
@@ -47,13 +64,63 @@ install-e2e:
 # Development
 # ============================================================
 
+# Default port
+PORT ?= 8000
+
+# Check if port is in use and handle it
+check-port:
+	@if ss -tlnp 2>/dev/null | grep -q ":$(PORT) "; then \
+		PID=$$(lsof -ti :$(PORT) 2>/dev/null || ss -tlnp 2>/dev/null | grep ":$(PORT) " | sed -n 's/.*pid=\([0-9]*\).*/\1/p'); \
+		if [ -n "$$PID" ]; then \
+			CMD=$$(ps -p $$PID -o comm= 2>/dev/null); \
+			if echo "$$CMD" | grep -qE "python|uvicorn"; then \
+				echo "🔪 Killing existing uvicorn process (PID: $$PID) on port $(PORT)..."; \
+				kill -9 $$PID 2>/dev/null || true; \
+				sleep 1; \
+			else \
+				echo "⚠️  Port $(PORT) occupied by other service ($$CMD), finding free port..."; \
+				$(MAKE) find-free-port; \
+			fi; \
+		else \
+			echo "⚠️  Port $(PORT) occupied, finding free port..."; \
+			$(MAKE) find-free-port; \
+		fi; \
+	fi
+
+find-free-port:
+	@for p in 8001 8002 8003 8080 8765 9000; do \
+		if ! ss -tlnp 2>/dev/null | grep -q ":$$p "; then \
+			echo "✅ Using port $$p instead"; \
+			echo $$p > .port; \
+			break; \
+		fi; \
+	done
+
 dev:
 	@echo "🔧 Starting development server..."
-	python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+	@$(MAKE) check-port PORT=$(PORT) 2>/dev/null || true
+	@if [ -f .port ]; then \
+		ACTUAL_PORT=$$(cat .port); rm -f .port; \
+	else \
+		ACTUAL_PORT=$(PORT); \
+	fi; \
+	echo "📡 Server running on http://0.0.0.0:$$ACTUAL_PORT"; \
+	python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port $$ACTUAL_PORT
 
 prod:
 	@echo "🚀 Starting production server..."
-	python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 4
+	@$(MAKE) check-port PORT=$(PORT) 2>/dev/null || true
+	@if [ -f .port ]; then \
+		ACTUAL_PORT=$$(cat .port); rm -f .port; \
+	else \
+		ACTUAL_PORT=$(PORT); \
+	fi; \
+	echo "📡 Server running on http://0.0.0.0:$$ACTUAL_PORT"; \
+	python -m uvicorn backend.main:app --host 0.0.0.0 --port $$ACTUAL_PORT --workers 4
+
+stop:
+	@echo "🛑 Stopping all streamware servers..."
+	@pkill -f "uvicorn backend.main:app" 2>/dev/null && echo "✅ Stopped" || echo "ℹ️  No server running"
 
 # ============================================================
 # Testing
@@ -61,15 +128,19 @@ prod:
 
 test:
 	@echo "🧪 Running tests..."
-	python scripts/test_demo.py
+	python -m pytest test_backend.py test_api.py -v
 
 test-unit:
 	@echo "🧪 Running unit tests..."
-	python -m pytest tests/unit -v
+	python -m pytest test_backend.py -v
 
 test-integration:
 	@echo "🧪 Running integration tests..."
-	python -m pytest tests/integration -v
+	python -m pytest test_api.py -v
+
+test-demo:
+	@echo "🎬 Running demo tests..."
+	python test_demo.py
 
 test-e2e:
 	@echo "🧪 Running E2E tests..."

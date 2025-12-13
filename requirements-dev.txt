@@ -1,20 +1,20 @@
 # Streamware MVP - Development Dependencies
+# Compatible with Python 3.11-3.13
 
 # Testing
-pytest==7.4.4
-pytest-asyncio==0.23.3
-pytest-cov==4.1.0
-httpx==0.26.0
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+pytest-cov>=6.0.0
 
 # E2E Testing
-playwright==1.41.0
+playwright>=1.48.0
 
 # Code Quality
-black==24.1.0
-isort==5.13.2
-flake8==7.0.0
-mypy==1.8.0
+black>=24.0.0
+isort>=5.13.0
+flake8>=7.0.0
+mypy>=1.8.0
 
 # Development
-ipython==8.20.0
-watchdog==3.0.0
+ipython>=8.20.0
+watchdog>=5.0.0
