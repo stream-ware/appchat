@@ -1,0 +1,42 @@
+# ============================================
+# SYSTEM MONITOR - Makefile.user
+# ============================================
+
+.PHONY: help overview cpu memory disk network processes
+
+SCRIPTS := $(shell pwd)/scripts
+
+# @text overview: "Pokaż przegląd systemu"
+# @text cpu: "Pokaż użycie CPU"
+# @text memory: "Pokaż użycie pamięci RAM"
+# @text disk: "Pokaż użycie dysku"
+# @text network: "Pokaż statystyki sieci"
+# @text processes: "Pokaż top procesy"
+
+help:
+	@echo "📊 System Monitor - User Commands"
+	@echo "=================================="
+	@echo "  overview   - System overview"
+	@echo "  cpu        - CPU usage"
+	@echo "  memory     - RAM usage"
+	@echo "  disk       - Disk usage"
+	@echo "  network    - Network stats"
+	@echo "  processes  - Top processes"
+
+overview:
+	@python3 $(SCRIPTS)/system_info.py overview
+
+cpu:
+	@python3 $(SCRIPTS)/system_info.py cpu
+
+memory:
+	@python3 $(SCRIPTS)/system_info.py memory
+
+disk:
+	@python3 $(SCRIPTS)/system_info.py disk
+
+network:
+	@python3 $(SCRIPTS)/system_info.py network
+
+processes:
+	@python3 $(SCRIPTS)/system_info.py processes

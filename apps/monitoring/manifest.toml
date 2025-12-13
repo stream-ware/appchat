@@ -1,0 +1,38 @@
+# System Monitoring App
+# CPU, RAM, Disk, Network monitoring
+
+[app]
+id = "monitoring"
+name = "📊 System Monitor"
+version = "1.0.0"
+description = "Monitor system resources (CPU, RAM, Disk, Network)"
+language = "python"
+author = "Streamware"
+
+[service]
+type = "internal"
+health_check = "uptime"
+
+[commands]
+"monitoring" = ["monitoring", "overview"]
+"cpu" = ["monitoring", "cpu"]
+"pamięć" = ["monitoring", "memory"]
+"ram" = ["monitoring", "memory"]
+"dysk" = ["monitoring", "disk"]
+"sieć" = ["monitoring", "network"]
+"procesy" = ["monitoring", "processes"]
+"zasoby" = ["monitoring", "overview"]
+
+[commands.keywords]
+monitoring = ["monitor", "zasoby", "cpu", "ram", "dysk", "pamięć", "sieć", "procesy"]
+
+[error_handling]
+fallback_response = "Błąd podczas pobierania danych monitoringu."
+
+[scripts]
+system_info = "scripts/system_info.py"
+
+[ui]
+icon = "📊"
+color = "#10b981"
+dashboard_widget = true

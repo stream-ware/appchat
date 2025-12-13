@@ -3,12 +3,13 @@
 # For: DevOps, CI/CD, System startup
 # ============================================
 
-.PHONY: help start stop restart status health logs install clean
+.PHONY: help start stop restart status health logs test install clean
 
 APP_NAME := weather
 APP_DIR := $(shell pwd)
 PID_FILE := $(APP_DIR)/run/app.pid
 LOG_FILE := $(APP_DIR)/logs/app.log
+TESTS_DIR := $(APP_DIR)/tests
 
 help:
 	@echo "🔧 Weather App - System Commands (Makefile.run)"
@@ -19,6 +20,7 @@ help:
 	@echo "  status   - Check service status"
 	@echo "  health   - Run health check"
 	@echo "  logs     - Show recent logs"
+	@echo "  test     - Run tests"
 	@echo "  install  - Install dependencies"
 	@echo "  clean    - Clean temporary files"
 
@@ -52,11 +54,19 @@ health:
 		echo '{"status": "unhealthy", "error": "API unavailable"}'
 
 logs:
-	@if [ -f $(LOG_FILE) ]; then \
-		tail -20 $(LOG_FILE); \
-	else \
-		echo "No logs available"; \
-	fi
+	@echo "=== Recent Logs (app.log) ==="
+	@if [ -f $(LOG_FILE) ]; then tail -20 $(LOG_FILE); else echo "No logs"; fi
+	@echo ""
+	@echo "=== Recent Errors (errors.log) ==="
+	@if [ -f $(APP_DIR)/logs/errors.log ]; then tail -10 $(APP_DIR)/logs/errors.log; else echo "No errors"; fi
+	@echo ""
+	@echo "=== YAML Logs (last 30 lines) ==="
+	@if [ -f $(APP_DIR)/logs/app.yaml ]; then tail -30 $(APP_DIR)/logs/app.yaml; else echo "No YAML logs"; fi
+
+test:
+	@echo "🧪 Running $(APP_NAME) tests..."
+	@cd $(APP_DIR) && python3 -m pytest tests/ -v 2>/dev/null || python3 tests/test_weather.py
+	@echo ""
 
 install:
 	@echo "Installing dependencies..."

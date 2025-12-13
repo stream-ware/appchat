@@ -1,0 +1,17 @@
+# BACKUP MANAGER - Makefile.user
+.PHONY: help create list restore
+SCRIPTS := $(shell pwd)/scripts
+# @text create: "Utwórz kopię zapasową"
+# @text list: "Pokaż listę kopii"
+# @text restore: "Przywróć z kopii"
+help:
+	@echo "💾 Backup Manager"
+	@echo "  create - Create backup"
+	@echo "  list   - List backups"
+	@echo "  restore FILE=x - Restore"
+create:
+	@bash $(SCRIPTS)/backup.sh create
+list:
+	@bash $(SCRIPTS)/backup.sh list
+restore:
+	@bash $(SCRIPTS)/backup.sh restore $(FILE)

@@ -1,0 +1,24 @@
+# Backup Manager App
+[app]
+id = "backup"
+name = "💾 Backup Manager"
+version = "1.0.0"
+description = "Backup and restore system data, configs, apps"
+language = "bash"
+author = "Streamware"
+
+[commands]
+"backup" = ["backup", "create"]
+"kopia" = ["backup", "create"]
+"przywróć" = ["backup", "restore"]
+"lista kopii" = ["backup", "list"]
+
+[commands.keywords]
+backup = ["backup", "kopia", "przywróć", "restore", "archiwum"]
+
+[scripts]
+backup_manager = "scripts/backup.sh"
+
+[ui]
+icon = "💾"
+color = "#f59e0b"

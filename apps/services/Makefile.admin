@@ -1,0 +1,59 @@
+# ============================================
+# SYSTEM SERVICES - Makefile.admin (Control)
+# ============================================
+
+.PHONY: help start stop restart enable disable docker-start docker-stop docker-restart
+
+SCRIPTS := $(shell pwd)/scripts
+
+# @text start: "Uruchom usługę"
+# @text stop: "Zatrzymaj usługę"
+# @text restart: "Restartuj usługę"
+# @text enable: "Włącz usługę przy starcie"
+# @text disable: "Wyłącz usługę przy starcie"
+# @text docker-start: "Uruchom kontener Docker"
+# @text docker-stop: "Zatrzymaj kontener Docker"
+
+help:
+	@echo "🔧 System Services - Admin Commands"
+	@echo "===================================="
+	@echo ""
+	@echo "Systemd Services:"
+	@echo "  start NAME=x      - Start service"
+	@echo "  stop NAME=x       - Stop service"
+	@echo "  restart NAME=x    - Restart service"
+	@echo "  enable NAME=x     - Enable at boot"
+	@echo "  disable NAME=x    - Disable at boot"
+	@echo ""
+	@echo "Docker Containers:"
+	@echo "  docker-start NAME=x  - Start container"
+	@echo "  docker-stop NAME=x   - Stop container"
+	@echo "  docker-restart NAME=x - Restart container"
+	@echo "  docker-logs NAME=x   - Show container logs"
+
+start:
+	@python3 $(SCRIPTS)/service_control.py start $(NAME)
+
+stop:
+	@python3 $(SCRIPTS)/service_control.py stop $(NAME)
+
+restart:
+	@python3 $(SCRIPTS)/service_control.py restart $(NAME)
+
+enable:
+	@python3 $(SCRIPTS)/service_control.py enable $(NAME)
+
+disable:
+	@python3 $(SCRIPTS)/service_control.py disable $(NAME)
+
+docker-start:
+	@python3 $(SCRIPTS)/service_control.py start $(NAME) docker
+
+docker-stop:
+	@python3 $(SCRIPTS)/service_control.py stop $(NAME) docker
+
+docker-restart:
+	@python3 $(SCRIPTS)/service_control.py restart $(NAME) docker
+
+docker-logs:
+	@python3 $(SCRIPTS)/service_control.py logs $(NAME) docker

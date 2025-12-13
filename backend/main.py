@@ -36,6 +36,8 @@ from backend.llm_manager import llm_manager, LLMManager
 from backend.app_registry import app_registry, AppRegistry
 from backend.makefile_converter import makefile_converter, MakefileConverter
 from backend.registry_manager import registry_manager, RegistryManager
+from backend.language_manager import language_manager, LanguageManager
+from backend.app_generator import app_generator, AppGenerator
 try:
     import aiomqtt
     MQTT_AVAILABLE = True
@@ -1478,30 +1480,52 @@ class ViewGenerator:
     
     @classmethod
     async def _generate_internet_view_async(cls, action: str, data: Any = None) -> Dict:
-        """Generate internet view with real API data"""
+        """Generate internet view with real API data - uses modular apps"""
         
         if action in ["weather", "weather_warsaw", "weather_krakow"]:
             city = "Kraków" if "krakow" in action else "Warszawa"
-            weather = await integrations.get_weather(city)
             
-            if weather.get("success"):
+            # Use modular weather app instead of hardcoded integrations
+            result = app_registry.run_script("weather", "get_weather", city)
+            
+            if result.get("success") and result.get("output", {}).get("success"):
+                weather = result["output"]
                 return {
                     "type": "internet",
                     "view": "weather",
-                    "title": f"🌤️ Pogoda - {city}",
-                    "subtitle": f"Aktualizacja: {weather.get('timestamp', '')[:19]}",
+                    "title": f"🌤️ Pogoda - {weather.get('city', city)}",
+                    "subtitle": f"Aktualizacja: {weather.get('time', '')[:16]}",
                     "data": weather,
                     "stats": [
                         {"label": "Temperatura", "value": f"{weather.get('temperature')}°C", "icon": "🌡️"},
-                        {"label": "Wilgotność", "value": f"{weather.get('humidity')}%", "icon": "💧"},
-                        {"label": "Wiatr", "value": f"{weather.get('wind_speed')} km/h", "icon": "💨"},
-                        {"label": "Miasto", "value": city, "icon": "📍"},
+                        {"label": "Opis", "value": weather.get('description', 'N/A'), "icon": "☁️"},
+                        {"label": "Wiatr", "value": f"{weather.get('windspeed')} km/h", "icon": "💨"},
+                        {"label": "Miasto", "value": weather.get('city', city), "icon": "📍"},
                     ],
                     "actions": [
                         {"id": "refresh_weather", "label": "Odśwież", "icon": "🔄"},
                     ]
                 }
             else:
+                # Fallback to integrations if app fails
+                weather = await integrations.get_weather(city)
+                if weather.get("success"):
+                    return {
+                        "type": "internet",
+                        "view": "weather",
+                        "title": f"🌤️ Pogoda - {city}",
+                        "subtitle": f"Aktualizacja: {weather.get('timestamp', '')[:19]}",
+                        "data": weather,
+                        "stats": [
+                            {"label": "Temperatura", "value": f"{weather.get('temperature')}°C", "icon": "🌡️"},
+                            {"label": "Wilgotność", "value": f"{weather.get('humidity')}%", "icon": "💧"},
+                            {"label": "Wiatr", "value": f"{weather.get('wind_speed')} km/h", "icon": "💨"},
+                            {"label": "Miasto", "value": city, "icon": "📍"},
+                        ],
+                        "actions": [
+                            {"id": "refresh_weather", "label": "Odśwież", "icon": "🔄"},
+                        ]
+                    }
                 return cls._generate_internet_view(action, data)
         
         elif action == "crypto":
@@ -2926,6 +2950,146 @@ async def execute_unified_command(data: Dict):
         return result
     
     return conversion
+
+# ============================================================================
+# LANGUAGE MANAGEMENT API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/languages")
+async def get_available_languages():
+    """Get available languages"""
+    return {"languages": language_manager.get_available_languages()}
+
+@app.get("/api/language")
+async def get_current_language(session_id: str = None):
+    """Get current language"""
+    lang = language_manager.get_language(session_id)
+    return {
+        "language": lang,
+        "tts": language_manager.get_tts_config(session_id),
+        "stt": language_manager.get_stt_config(session_id)
+    }
+
+@app.post("/api/language")
+async def set_language(data: Dict):
+    """Set language for session or globally"""
+    lang = data.get("language")
+    session_id = data.get("session_id")
+    
+    if not lang:
+        raise HTTPException(status_code=400, detail="Language required")
+    
+    success = language_manager.set_language(lang, session_id)
+    return {"success": success, "language": lang}
+
+@app.get("/api/translations")
+async def get_translations(session_id: str = None):
+    """Get all translations for current language"""
+    return {
+        "language": language_manager.get_language(session_id),
+        "translations": language_manager.get_all_translations(session_id)
+    }
+
+@app.get("/api/tts/config")
+async def get_tts_config(session_id: str = None):
+    """Get TTS configuration for current language"""
+    return language_manager.get_tts_config(session_id)
+
+@app.get("/api/stt/config")
+async def get_stt_config(session_id: str = None):
+    """Get STT configuration for current language"""
+    return language_manager.get_stt_config(session_id)
+
+# ============================================================================
+# APP GENERATOR API ENDPOINTS
+# ============================================================================
+
+@app.get("/api/generator/registries")
+async def get_library_registries():
+    """Get available library registries (npm, pypi, docker, etc.)"""
+    return {"registries": app_generator.get_available_registries()}
+
+@app.post("/api/generator/search")
+async def search_library_registry(data: Dict):
+    """Search library registry"""
+    registry_id = data.get("registry")
+    query = data.get("query")
+    
+    if not registry_id or not query:
+        raise HTTPException(status_code=400, detail="Registry and query required")
+    
+    results = await app_generator.search_registry(registry_id, query)
+    return {"registry": registry_id, "query": query, "results": results}
+
+@app.post("/api/generator/from-package")
+async def generate_app_from_package(data: Dict):
+    """Generate app from package (npm, pypi, docker)"""
+    registry_id = data.get("registry")
+    package_name = data.get("package")
+    app_id = data.get("app_id")
+    description = data.get("description", "")
+    
+    if not registry_id or not package_name:
+        raise HTTPException(status_code=400, detail="Registry and package required")
+    
+    result = await app_generator.generate_app_from_package(
+        registry_id, package_name, app_id, description
+    )
+    
+    # Reload apps after generation
+    if result.get("success"):
+        app_registry.scan_apps()
+    
+    return result
+
+@app.post("/api/generator/from-api-docs")
+async def generate_app_from_api_docs(data: Dict):
+    """Generate app from API documentation URL"""
+    api_docs_url = data.get("url")
+    app_id = data.get("app_id")
+    app_name = data.get("app_name")
+    
+    if not api_docs_url:
+        raise HTTPException(status_code=400, detail="API docs URL required")
+    
+    # Inject LLM manager
+    app_generator.llm_manager = llm_manager
+    
+    result = await app_generator.generate_app_from_api_docs(
+        api_docs_url, app_id, app_name
+    )
+    
+    # Reload apps after generation
+    if result.get("success"):
+        app_registry.scan_apps()
+    
+    return result
+
+@app.post("/api/generator/makefiles")
+async def generate_makefiles_for_repo(data: Dict):
+    """Generate Makefiles for repository without them"""
+    repo_path = data.get("path")
+    app_id = data.get("app_id")
+    
+    if not repo_path:
+        raise HTTPException(status_code=400, detail="Repository path required")
+    
+    from pathlib import Path
+    repo_path = Path(repo_path)
+    
+    if not repo_path.exists():
+        raise HTTPException(status_code=404, detail="Repository path not found")
+    
+    # Inject LLM manager
+    app_generator.llm_manager = llm_manager
+    
+    result = await app_generator.generate_makefiles_for_repo(repo_path, app_id)
+    
+    # Reload apps after generation
+    if result.get("success"):
+        app_registry.scan_apps()
+    
+    return result
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="frontend"), name="static")

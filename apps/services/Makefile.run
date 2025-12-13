@@ -1,0 +1,23 @@
+# ============================================
+# SYSTEM SERVICES - Makefile.run (System)
+# ============================================
+
+.PHONY: help health status install
+
+help:
+	@echo "🔧 System Services - System Commands"
+	@echo "====================================="
+	@echo "  health  - Check system health"
+	@echo "  status  - System status"
+	@echo "  install - Install dependencies"
+
+health:
+	@systemctl is-system-running > /dev/null 2>&1 && \
+		echo '{"status": "healthy", "system": "running"}' || \
+		echo '{"status": "degraded"}'
+
+status:
+	@echo '{"app": "services", "status": "running"}'
+
+install:
+	@echo "No dependencies required"

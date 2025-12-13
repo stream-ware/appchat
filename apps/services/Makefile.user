@@ -1,0 +1,38 @@
+# ============================================
+# SYSTEM SERVICES - Makefile.user (View Only)
+# ============================================
+
+.PHONY: help list systemd docker status logs
+
+SCRIPTS := $(shell pwd)/scripts
+
+# @text list: "Pokaż wszystkie usługi"
+# @text systemd: "Pokaż usługi systemd"
+# @text docker: "Pokaż kontenery Docker"
+# @text status: "Sprawdź status usługi"
+# @text logs: "Pokaż logi usługi"
+
+help:
+	@echo "🔧 System Services - User Commands"
+	@echo "==================================="
+	@echo ""
+	@echo "  list              - List all services"
+	@echo "  systemd           - List systemd services"
+	@echo "  docker            - List Docker containers"
+	@echo "  status NAME=x     - Check service status"
+	@echo "  logs NAME=x       - Show service logs"
+
+list:
+	@python3 $(SCRIPTS)/list_services.py all
+
+systemd:
+	@python3 $(SCRIPTS)/list_services.py systemd
+
+docker:
+	@python3 $(SCRIPTS)/list_services.py docker
+
+status:
+	@python3 $(SCRIPTS)/list_services.py status $(NAME)
+
+logs:
+	@python3 $(SCRIPTS)/service_control.py logs $(NAME)

@@ -1,0 +1,50 @@
+# System Services Manager
+# Analyze, start, stop, restart system services
+
+[app]
+id = "services"
+name = "🔧 System Services"
+version = "1.0.0"
+description = "Manage system services (systemctl, docker)"
+language = "python"
+author = "Streamware"
+
+[app.permissions]
+required = ["admin", "system"]
+optional = []
+
+[service]
+type = "internal"
+health_check = "systemctl is-system-running"
+
+[commands]
+"usługi" = ["services", "list"]
+"services" = ["services", "list"]
+"lista usług" = ["services", "list"]
+"uruchom usługę" = ["services", "start"]
+"zatrzymaj usługę" = ["services", "stop"]
+"restartuj usługę" = ["services", "restart"]
+"status usługi" = ["services", "status"]
+"logi usługi" = ["services", "logs"]
+"docker" = ["services", "docker"]
+"kontenery" = ["services", "containers"]
+
+[commands.keywords]
+services = ["usługa", "service", "systemctl", "docker", "kontener", "demon"]
+
+[error_handling]
+on_permission_denied = "Brak uprawnień do zarządzania usługami."
+on_service_not_found = "Usługa nie została znaleziona."
+fallback_response = "Błąd podczas operacji na usłudze."
+
+[scripts]
+list_services = "scripts/list_services.py"
+service_control = "scripts/service_control.py"
+docker_manager = "scripts/docker_manager.py"
+analyze_service = "scripts/analyze_service.py"
+
+[ui]
+icon = "🔧"
+color = "#ef4444"
+dashboard_widget = true
+admin_only = true

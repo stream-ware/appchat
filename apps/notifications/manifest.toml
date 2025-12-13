@@ -1,0 +1,23 @@
+# Notifications Manager App
+[app]
+id = "notifications"
+name = "🔔 Notifications"
+version = "1.0.0"
+description = "System notifications, alerts, and messaging"
+language = "python"
+author = "Streamware"
+
+[commands]
+"powiadomienia" = ["notifications", "list"]
+"alerts" = ["notifications", "alerts"]
+"wyślij" = ["notifications", "send"]
+
+[commands.keywords]
+notifications = ["powiadomienie", "alert", "wiadomość", "notify"]
+
+[scripts]
+notify = "scripts/notify.py"
+
+[ui]
+icon = "🔔"
+color = "#ec4899"
