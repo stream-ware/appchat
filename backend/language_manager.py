@@ -306,29 +306,22 @@ class LanguageManager:
     def get_tts_config(self, session_id: str = None) -> Dict:
         """Get TTS configuration for current language"""
         lang_code = self.get_language(session_id)
-        lang = self.LANGUAGES.get(lang_code)
-        
+        lang = self.LANGUAGES.get(lang_code) or self.LANGUAGES.get(self._default_language) or self.LANGUAGES.get("en")
+
         if not lang:
-            lang = self.LANGUAGES["en"]
-        
-        return {
-            "language": lang.code,
-            "voice": lang.tts_voice,
-            "model": f"{lang.code}-{lang.code.upper()}"
-        }
+            return {"language": "en-GB", "voice": None, "model": "en-GB"}
+
+        return {"language": lang.tts_code, "voice": None, "model": lang.tts_code}
     
     def get_stt_config(self, session_id: str = None) -> Dict:
         """Get STT configuration for current language"""
         lang_code = self.get_language(session_id)
-        lang = self.LANGUAGES.get(lang_code)
-        
+        lang = self.LANGUAGES.get(lang_code) or self.LANGUAGES.get(self._default_language) or self.LANGUAGES.get("en")
+
         if not lang:
-            lang = self.LANGUAGES["en"]
-        
-        return {
-            "language": lang.stt_model,
-            "model": lang.stt_model
-        }
+            return {"language": "en-GB", "model": "en-GB"}
+
+        return {"language": lang.stt_code, "model": lang.stt_code}
     
     def detect_command_language(self, text: str) -> Optional[str]:
         """Detect language from command text"""

@@ -1083,12 +1083,37 @@ class ViewGenerator:
         current_path: Optional[Path] = None
         filter_mode = "all"
 
+        title = "🖼️ Media"
+        screenshot_name_filter = False
+
         if action == "pictures":
             current_path = home / "Pictures"
             filter_mode = "images"
         elif action == "videos":
             current_path = home / "Videos"
             filter_mode = "videos"
+        elif action == "recent_screenshots":
+            title = "📸 Screenshoty"
+            filter_mode = "images"
+
+            screenshot_candidates = [
+                home / "Pictures" / "Screenshots",
+                home / "Pictures" / "screenshots",
+                home / "Pictures" / "Zrzuty ekranu",
+                home / "Pictures" / "zrzuty ekranu",
+            ]
+
+            screenshot_dir = None
+            for p in screenshot_candidates:
+                if p.exists() and p.is_dir():
+                    screenshot_dir = p
+                    break
+
+            if screenshot_dir:
+                current_path = screenshot_dir
+            else:
+                current_path = home / "Pictures"
+                screenshot_name_filter = True
         elif action == "folder":
             requested = (params.get("path") or params.get("folder") or params.get("dir") or "").strip()
             if requested:
@@ -1166,6 +1191,11 @@ class ViewGenerator:
                     if filter_mode == "videos" and kind != "video":
                         continue
 
+                    if screenshot_name_filter:
+                        name_lower = item.name.lower()
+                        if "screenshot" not in name_lower and "zrzut" not in name_lower:
+                            continue
+
                     stat = item.stat()
                     media_items.append({
                         "name": item.name,
@@ -1206,6 +1236,7 @@ class ViewGenerator:
 
         actions = [
             {"id": "browse", "label": "🖼️ Media", "cmd": "media"},
+            {"id": "screenshots", "label": "📸 Screenshoty", "cmd": "ostatnie screenshoty"},
             {"id": "pictures", "label": "🖼️ Zdjęcia", "cmd": "pokaż zdjęcia"},
             {"id": "videos", "label": "🎬 Filmy", "cmd": "pokaż filmy"},
         ]
@@ -1218,7 +1249,7 @@ class ViewGenerator:
         return {
             "type": "media",
             "view": "browser",
-            "title": "🖼️ Media",
+            "title": title,
             "subtitle": f"{current_path}",
             "filter": filter_mode,
             "current_path": str(current_path),
@@ -1232,6 +1263,7 @@ class ViewGenerator:
             "stats": stats,
             "quick_actions": [
                 {"cmd": "media", "label": "🖼️ Media", "icon": "🖼️"},
+                {"cmd": "ostatnie screenshoty", "label": "Screenshoty", "icon": "📸"},
                 {"cmd": "pokaż zdjęcia", "label": "Zdjęcia", "icon": "🖼️"},
                 {"cmd": "pokaż filmy", "label": "Filmy", "icon": "🎬"},
             ],
@@ -1870,6 +1902,25 @@ class ViewGenerator:
         limit = params.get("limit", 5)
         precomputed_results = params.get("results") if isinstance(params.get("results"), list) else None
 
+        default_map_delta = 0.08
+        map_delta_raw = params.get("map_delta")
+        try:
+            map_delta = float(map_delta_raw) if map_delta_raw is not None else default_map_delta
+        except Exception:
+            map_delta = default_map_delta
+
+        if action == "zoom_in":
+            map_delta = map_delta * 0.7
+        elif action == "zoom_out":
+            map_delta = map_delta / 0.7
+        elif action == "zoom_reset":
+            map_delta = default_map_delta
+
+        if map_delta < 0.002:
+            map_delta = 0.002
+        elif map_delta > 60.0:
+            map_delta = 60.0
+
         if not query:
             return {
                 "type": "maps",
@@ -1907,10 +1958,10 @@ class ViewGenerator:
             return r * c
 
         def osm_urls(lat: float, lon: float, delta: float = 0.08) -> Dict[str, str]:
-            left = lon - delta
-            right = lon + delta
-            top = lat + delta
-            bottom = lat - delta
+            left = max(-180.0, lon - delta)
+            right = min(180.0, lon + delta)
+            top = min(90.0, lat + delta)
+            bottom = max(-90.0, lat - delta)
             embed_url = (
                 "https://www.openstreetmap.org/export/embed.html"
                 f"?bbox={left}%2C{bottom}%2C{right}%2C{top}"
@@ -1942,14 +1993,15 @@ class ViewGenerator:
             enriched_results.append(rr)
 
         selected_index: Optional[int] = None
-        raw_idx = params.get("selected_index")
+        raw_selected_idx = params.get("selected_index")
+        raw_idx = raw_selected_idx
         if raw_idx is None:
             raw_idx = params.get("index")
 
         if raw_idx is not None:
             try:
                 idx = int(str(raw_idx).strip())
-                if idx >= 1:
+                if raw_selected_idx is None and idx >= 1:
                     idx = idx - 1
                 if 0 <= idx < len(enriched_results):
                     selected_index = idx
@@ -1974,7 +2026,7 @@ class ViewGenerator:
             try:
                 map_data = {
                     "center": {"lat": float(selected["latitude"]), "lon": float(selected["longitude"])},
-                    **osm_urls(float(selected["latitude"]), float(selected["longitude"])),
+                    **osm_urls(float(selected["latitude"]), float(selected["longitude"]), delta=map_delta),
                 }
             except Exception:
                 map_data = None
@@ -2008,6 +2060,10 @@ class ViewGenerator:
                     }
                 )
 
+        if map_data:
+            quick_actions.append({"cmd": "przybliż", "label": "Przybliż", "icon": "➕"})
+            quick_actions.append({"cmd": "oddal", "label": "Oddal", "icon": "➖"})
+            quick_actions.append({"cmd": "reset zoom", "label": "Reset zoom", "icon": "🎯"})
         quick_actions.append({"cmd": f"mapa {query}", "label": "Odśwież", "icon": "🔄"})
 
         return {
@@ -2020,6 +2076,7 @@ class ViewGenerator:
             "selected_index": selected_index,
             "selected": selected,
             "user_location": user_location,
+            "map_delta": map_delta,
             "map": map_data,
             "popular": get_popular_cities(),
             "stats": stats,
@@ -2533,6 +2590,8 @@ class ResponseGenerator:
         query = (view.get("query") or "").strip()
         results = view.get("results") or []
         if not query:
+            if action in ["zoom_in", "zoom_out", "zoom_reset"]:
+                return "Najpierw wyszukaj miejsce, np. 'mapa Berlin', a potem powiedz 'przybliż' lub 'oddal'."
             return "Podaj nazwę miejscowości, np. 'mapa Berlin'."
 
         if not isinstance(results, list) or not results:
@@ -2569,6 +2628,12 @@ class ResponseGenerator:
         base = ""
         if action == "select":
             base = f"Wybrano: {chosen}. Wyświetlam mapę."
+        elif action == "zoom_in":
+            base = f"Przybliżam mapę: {chosen}."
+        elif action == "zoom_out":
+            base = f"Oddalam mapę: {chosen}."
+        elif action == "zoom_reset":
+            base = f"Resetuję powiększenie mapy: {chosen}."
         else:
             if user_location and dist_km is not None and len(results) > 1:
                 loc_label = (user_location.get("city") or user_location.get("region") or user_location.get("country") or "Twojej lokalizacji")
@@ -2580,7 +2645,7 @@ class ResponseGenerator:
         if dist_km is not None:
             parts.append(f"(~{dist_km} km)")
 
-        if len(results) > 1:
+        if action not in ["zoom_in", "zoom_out", "zoom_reset"] and len(results) > 1:
             options = []
             for i, r in enumerate(results[:5]):
                 if not isinstance(r, dict) or not r.get("name"):
@@ -2686,6 +2751,8 @@ class ResponseGenerator:
         items = view.get("items") or []
         folders = view.get("folders") or []
 
+        if action == "recent_screenshots":
+            return f"Wyświetlam screenshoty ({len(items)}) w: {current_path}"
         if action == "pictures":
             return f"Wyświetlam zdjęcia ({len(items)}) w: {current_path}"
         if action == "videos":
@@ -3055,13 +3122,15 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     if client_ip:
                         params["_client_ip"] = client_ip
 
-                    if intent.get("action") == "select":
+                    action = intent.get("action")
+                    if action == "select":
                         idx_raw = params.get("index")
                         if idx_raw is not None:
                             m = re.search(r"\d+", str(idx_raw))
                             if m:
                                 params["index"] = m.group(0)
 
+                    if action in ["select", "zoom_in", "zoom_out", "zoom_reset"]:
                         last_maps = context_manager.get_last_app_result(client_id, "maps")
                         if isinstance(last_maps, dict):
                             if not str(params.get("query") or "").strip():
@@ -3072,6 +3141,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                                 params["results"] = last_maps.get("results")
                             if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
                                 params["user_location"] = last_maps.get("user_location")
+                            if last_maps.get("map_delta") is not None and params.get("map_delta") is None:
+                                params["map_delta"] = last_maps.get("map_delta")
+                            if action != "select":
+                                if last_maps.get("selected_index") is not None and params.get("selected_index") is None and params.get("index") is None:
+                                    params["selected_index"] = last_maps.get("selected_index")
                 if intent["app_type"] in ["internet", "maps"]:
                     view_data = await ViewGenerator.generate_async(
                         intent["app_type"],
@@ -3148,13 +3222,15 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         if client_ip:
                             params["_client_ip"] = client_ip
 
-                        if intent.get("action") == "select":
+                        action = intent.get("action")
+                        if action == "select":
                             idx_raw = params.get("index")
                             if idx_raw is not None:
                                 m = re.search(r"\d+", str(idx_raw))
                                 if m:
                                     params["index"] = m.group(0)
 
+                        if action in ["select", "zoom_in", "zoom_out", "zoom_reset"]:
                             last_maps = context_manager.get_last_app_result(client_id, "maps")
                             if isinstance(last_maps, dict):
                                 if not str(params.get("query") or "").strip():
@@ -3165,6 +3241,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                                     params["results"] = last_maps.get("results")
                                 if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
                                     params["user_location"] = last_maps.get("user_location")
+                                if last_maps.get("map_delta") is not None and params.get("map_delta") is None:
+                                    params["map_delta"] = last_maps.get("map_delta")
+                                if action != "select":
+                                    if last_maps.get("selected_index") is not None and params.get("selected_index") is None and params.get("index") is None:
+                                        params["selected_index"] = last_maps.get("selected_index")
                     if intent["app_type"] in ["internet", "maps"]:
                         view_data = await ViewGenerator.generate_async(intent["app_type"], intent["action"], params=params)
                     else:
@@ -3209,14 +3290,13 @@ async def camera_stream(camera_id: str):
     return {
         "camera_id": camera_id,
         "stream_type": "simulated",
-        "message": "W prawdziwej implementacji tutaj byłby stream RTSP/MJPEG"
     }
 
 # REST endpoint for testing
 @app.post("/api/command")
 async def process_command(request: Request, command: Dict):
     text = command.get("text", "")
-    logger.info(f"📨 REST command: {text}")
+    logger.info(f" REST command: {text}")
     intent = VoiceCommandProcessor.process(text)
     params = intent.get("params", {})
     session_id = command.get("session_id") or command.get("client_id")
@@ -3229,13 +3309,15 @@ async def process_command(request: Request, command: Dict):
         if client_ip:
             params["_client_ip"] = client_ip
 
-        if intent.get("action") == "select" and session_id:
+        action = intent.get("action")
+        if action == "select" and session_id:
             idx_raw = params.get("index")
             if idx_raw is not None:
                 m = re.search(r"\d+", str(idx_raw))
                 if m:
                     params["index"] = m.group(0)
 
+        if action in ["select", "zoom_in", "zoom_out", "zoom_reset"] and session_id:
             last_maps = context_manager.get_last_app_result(session_id, "maps")
             if isinstance(last_maps, dict):
                 if not str(params.get("query") or "").strip():
@@ -3246,6 +3328,11 @@ async def process_command(request: Request, command: Dict):
                     params["results"] = last_maps.get("results")
                 if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
                     params["user_location"] = last_maps.get("user_location")
+                if last_maps.get("map_delta") is not None and params.get("map_delta") is None:
+                    params["map_delta"] = last_maps.get("map_delta")
+                if action != "select":
+                    if last_maps.get("selected_index") is not None and params.get("selected_index") is None and params.get("index") is None:
+                        params["selected_index"] = last_maps.get("selected_index")
     if intent["app_type"] in ["internet", "maps"]:
         view_data = await ViewGenerator.generate_async(intent["app_type"], intent["action"], params=params)
     else:
@@ -4170,6 +4257,7 @@ async def send_command(request: Request, data: Dict):
                     if m:
                         params["index"] = m.group(0)
 
+            if action in ["select", "zoom_in", "zoom_out", "zoom_reset"] and session_id:
                 last_maps = context_manager.get_last_app_result(session_id, "maps")
                 if isinstance(last_maps, dict):
                     if not str(params.get("query") or "").strip():
@@ -4180,6 +4268,11 @@ async def send_command(request: Request, data: Dict):
                         params["results"] = last_maps.get("results")
                     if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
                         params["user_location"] = last_maps.get("user_location")
+                    if last_maps.get("map_delta") is not None and params.get("map_delta") is None:
+                        params["map_delta"] = last_maps.get("map_delta")
+                    if action != "select":
+                        if last_maps.get("selected_index") is not None and params.get("selected_index") is None and params.get("index") is None:
+                            params["selected_index"] = last_maps.get("selected_index")
 
         if app_type in ["internet", "maps"]:
             view = await ViewGenerator.generate_async(app_type, action, params=params)

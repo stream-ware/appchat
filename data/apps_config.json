@@ -105,7 +105,9 @@
         {"cmd": "mapa Warszawa", "name": "Warszawa", "desc": "Szukaj Warszawa"},
         {"cmd": "mapa Kraków", "name": "Kraków", "desc": "Szukaj Kraków"},
         {"cmd": "mapa Berlin", "name": "Berlin", "desc": "Szukaj Berlin"},
-        {"cmd": "mapa New York", "name": "New York", "desc": "Szukaj New York"}
+        {"cmd": "mapa New York", "name": "New York", "desc": "Szukaj New York"},
+        {"cmd": "przybliż", "name": "Przybliż", "desc": "Powiększ mapę"},
+        {"cmd": "oddal", "name": "Oddal", "desc": "Pomniejsz mapę"}
       ]
     },
     "media": {
@@ -250,7 +252,8 @@
       "kto": "whoami",
       "użytkownicy": "users",
       "start": "welcome",
-      "aplikacje": "welcome"
+      "aplikacje": "welcome",
+      "system": "welcome"
     },
     "files": {
       "pokaż pliki": "list",
@@ -277,17 +280,24 @@
       "wideo": "videos",
       "media folder": "folder",
       "media katalog": "folder",
-      "media directory": "folder"
+      "media directory": "folder",
+      "ostatnie screenshoty": "recent_screenshots",
+      "ostatnie zrzuty": "recent_screenshots",
+      "zrzuty ekranu": "recent_screenshots"
     },
     "maps": {
       "mapa": "search",
       "mapa wybierz": "select",
       "maps": "search",
       "maps wybierz": "select",
-      "szukaj": "search",
-      "znajdź": "search",
-      "lokalizacja": "search",
-      "geokoduj": "search"
+      "przybliż": "zoom_in",
+      "przybliz": "zoom_in",
+      "powiększ": "zoom_in",
+      "powieksz": "zoom_in",
+      "oddal": "zoom_out",
+      "pomniejsz": "zoom_out",
+      "reset zoom": "zoom_reset",
+      "resetuj zoom": "zoom_reset"
     },
     "cloud_storage": {
       "połącz onedrive": "connect_onedrive",

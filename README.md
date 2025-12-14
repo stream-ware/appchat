@@ -1,4 +1,6 @@
-# Streamware MVP - Voice-Controlled Dashboard Platform
+![dashboard.png](dashboard.png)
+
+# Streamware - Voice-Controlled Dashboard Platform
 
 🚀 **Streamware** to platforma do zarządzania aplikacjami sterowana głosowo, z integracjami internetowymi, OCR, monitoringiem i AI.
 

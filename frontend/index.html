@@ -2133,6 +2133,14 @@ Przykładowe komendy:
         }
 
         function renderMapsView(view) {
+            const encodeCmd = (cmd) => {
+                return encodeURIComponent(String(cmd || '')).replace(/'/g, '%27');
+            };
+
+            const onclickCmd = (cmd) => {
+                return `sendCommand(decodeURIComponent('${encodeCmd(cmd)}'))`;
+            };
+
             let html = '<div class="maps-dashboard">';
 
             // Stats
@@ -2216,7 +2224,8 @@ Przykładowe komendy:
                 html += '<h3>⭐ Popularne</h3>';
                 html += '<div class="quick-actions-grid">';
                 popular.forEach(p => {
-                    html += `<button class="quick-action-btn" onclick="sendCommand('mapa ${p.name}')">📍 ${p.name}</button>`;
+                    const cmd = `mapa ${p.name}`;
+                    html += `<button class="quick-action-btn" onclick="${onclickCmd(cmd)}">📍 ${p.name}</button>`;
                 });
                 html += '</div></div>';
             }
@@ -2225,7 +2234,7 @@ Przykładowe komendy:
             if (view.quick_actions) {
                 html += '<div class="quick-actions-grid" style="margin-top: 16px;">';
                 view.quick_actions.forEach(action => {
-                    html += `<button class="quick-action-btn" onclick="sendCommand('${action.cmd}')">${action.icon || ''} ${action.label}</button>`;
+                    html += `<button class="quick-action-btn" onclick="${onclickCmd(action.cmd)}">${action.icon || ''} ${action.label}</button>`;
                 });
                 html += '</div>';
             }
@@ -3057,6 +3066,14 @@ Przykładowe komendy:
                     {cmd: 'rss', name: '📰 RSS', desc: 'Kanały RSS'},
                     {cmd: 'integracje', name: '🔌 Status', desc: 'Status integracji'},
                 ],
+                'maps': [
+                    {cmd: 'mapa', name: '🗺️ Mapy', desc: 'Wyszukaj miejscowość'},
+                    {cmd: 'mapa Warszawa', name: '📍 Warszawa', desc: 'Szukaj Warszawa'},
+                    {cmd: 'mapa Kraków', name: '📍 Kraków', desc: 'Szukaj Kraków'},
+                    {cmd: 'przybliż', name: '➕ Przybliż', desc: 'Powiększ mapę'},
+                    {cmd: 'oddal', name: '➖ Oddal', desc: 'Pomniejsz mapę'},
+                    {cmd: 'reset zoom', name: '🎯 Reset zoom', desc: 'Reset powiększenia'},
+                ],
                 'documents': [
                     {cmd: 'pokaż faktury', name: '📄 Faktury', desc: 'Lista faktur'},
                     {cmd: 'suma faktur', name: '💰 Suma', desc: 'Suma faktur'},
@@ -3271,6 +3288,7 @@ Przykładowe komendy:
                 'home': '🏠 Smart Home',
                 'analytics': '📈 Analityka',
                 'internet': '🌐 Internet',
+                'maps': '🗺️ Mapy',
                 'media': '🖼️ Media',
                 'system': '⚙️ System'
             };
@@ -3324,6 +3342,12 @@ Przykładowe komendy:
                 {cmd: 'bitcoin', label: '₿ Crypto'},
                 {cmd: 'rss', label: '📰 News'},
                 {cmd: 'integracje', label: '🔌 Status'}
+            ],
+            'maps': [
+                {cmd: 'mapa Warszawa', label: '📍 Warszawa'},
+                {cmd: 'mapa Kraków', label: '📍 Kraków'},
+                {cmd: 'przybliż', label: '➕ Przybliż'},
+                {cmd: 'oddal', label: '➖ Oddal'}
             ],
             'media': [
                 {cmd: 'media', label: '🖼️ Media'},

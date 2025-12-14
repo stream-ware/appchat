@@ -158,5 +158,25 @@
     "success": true,
     "query": "kamerę w sieci",
     "results": []
+  },
+  "wojana": {
+    "success": true,
+    "query": "wojana",
+    "results": []
+  },
+  "szczebrzeszyn": {
+    "success": true,
+    "query": "Szczebrzeszyn",
+    "results": [
+      {
+        "name": "Szczebrzeszyn",
+        "country": "Polska",
+        "admin": "Lubelskie",
+        "latitude": 50.69499,
+        "longitude": 22.97954,
+        "population": 5255,
+        "timezone": "Europe/Warsaw"
+      }
+    ]
   }
 }
