@@ -1472,18 +1472,62 @@ class ViewGenerator:
     @classmethod
     def _generate_sales_view(cls, action: str, data: List[SalesData] = None) -> Dict:
         """Generate sales view - shows empty state without fake data"""
+        subtitle = "Dashboard sprzedaży i raportów"
+
+        month_label = None
+        year_label = None
+        if isinstance(data, dict):
+            month_name = data.get("month_name")
+            month = data.get("month")
+            year = data.get("year")
+
+            if month_name:
+                month_label = str(month_name)
+            elif isinstance(month, int) and 1 <= month <= 12:
+                month_label = str(month)
+            elif isinstance(month, str):
+                m = re.search(r"\d+", month)
+                if m:
+                    try:
+                        mi = int(m.group(0))
+                        if 1 <= mi <= 12:
+                            month_label = str(mi)
+                    except Exception:
+                        pass
+
+            if isinstance(year, int):
+                year_label = str(year)
+            elif isinstance(year, str):
+                m = re.search(r"\d{4}", year)
+                if m:
+                    year_label = m.group(0)
+
+        month_filter = None
+        if month_label and year_label:
+            month_filter = f"{month_label} {year_label}"
+        elif month_label:
+            month_filter = month_label
+
+        if month_filter:
+            subtitle = f"Dashboard sprzedaży - {month_filter}"
+
+        stats: List[Dict[str, Any]] = []
+        if month_filter:
+            stats.append({"label": "Miesiąc", "value": month_filter, "icon": "📅"})
+        stats.extend([
+            {"label": "Sprzedaż", "value": "0 PLN", "icon": "💰"},
+            {"label": "Transakcji", "value": 0, "icon": "🛒"},
+            {"label": "Regionów", "value": 0, "icon": "🗺️"},
+        ])
+
         return {
             "type": "sales",
             "view": "empty_state",
             "title": "📊 Sprzedaż",
-            "subtitle": "Dashboard sprzedaży i raportów",
+            "subtitle": subtitle,
             "empty_message": "Brak danych sprzedażowych",
             "empty_instructions": "Połącz z systemem CRM lub zaimportuj dane sprzedażowe.",
-            "stats": [
-                {"label": "Sprzedaż", "value": "0 PLN", "icon": "💰"},
-                {"label": "Transakcji", "value": 0, "icon": "🛒"},
-                {"label": "Regionów", "value": 0, "icon": "🗺️"},
-            ],
+            "stats": stats,
             "quick_actions": [
                 {"cmd": "importuj sprzedaż", "label": "📥 Importuj dane", "icon": "📥"},
                 {"cmd": "połącz crm", "label": "🔗 Połącz CRM", "icon": "🔗"},
@@ -3197,40 +3241,25 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 if cmd:
                     # Execute the command directly
                     intent = VoiceCommandProcessor.process(cmd)
+
+                    client_ip = websocket.headers.get("x-forwarded-for") or websocket.headers.get("X-Forwarded-For")
+                    if client_ip:
+                        client_ip = client_ip.split(",", 1)[0].strip()
+                    elif websocket.client:
+                        client_ip = websocket.client.host
+
+                    intent = apply_app_workflow(
+                        session_id=client_id,
+                        command=cmd,
+                        intent=intent,
+                        session_manager=session_manager,
+                        context_manager=context_manager,
+                        extra={"client_ip": client_ip},
+                    )
+
                     params = intent.get("params", {})
-                    if intent.get("app_type") == "maps":
-                        client_ip = websocket.headers.get("x-forwarded-for") or websocket.headers.get("X-Forwarded-For")
-                        if client_ip:
-                            client_ip = client_ip.split(",", 1)[0].strip()
-                        elif websocket.client:
-                            client_ip = websocket.client.host
-                        if client_ip:
-                            params["_client_ip"] = client_ip
-
-                        action = intent.get("action")
-                        if action == "select":
-                            idx_raw = params.get("index")
-                            if idx_raw is not None:
-                                m = re.search(r"\d+", str(idx_raw))
-                                if m:
-                                    params["index"] = m.group(0)
-
-                        if action in ["select", "zoom_in", "zoom_out", "zoom_reset"]:
-                            last_maps = context_manager.get_last_app_result(client_id, "maps")
-                            if isinstance(last_maps, dict):
-                                if not str(params.get("query") or "").strip():
-                                    prev_query = str(last_maps.get("query") or "").strip()
-                                    if prev_query:
-                                        params["query"] = prev_query
-                                if isinstance(last_maps.get("results"), list) and not isinstance(params.get("results"), list):
-                                    params["results"] = last_maps.get("results")
-                                if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
-                                    params["user_location"] = last_maps.get("user_location")
-                                if last_maps.get("map_delta") is not None and params.get("map_delta") is None:
-                                    params["map_delta"] = last_maps.get("map_delta")
-                                if action != "select":
-                                    if last_maps.get("selected_index") is not None and params.get("selected_index") is None and params.get("index") is None:
-                                        params["selected_index"] = last_maps.get("selected_index")
+                    if not isinstance(params, dict):
+                        params = {}
                     if intent["app_type"] in ["internet", "maps"]:
                         view_data = await ViewGenerator.generate_async(intent["app_type"], intent["action"], params=params)
                     else:
@@ -3283,41 +3312,26 @@ async def process_command(request: Request, command: Dict):
     text = command.get("text", "")
     logger.info(f" REST command: {text}")
     intent = VoiceCommandProcessor.process(text)
-    params = intent.get("params", {})
     session_id = command.get("session_id") or command.get("client_id")
-    if intent.get("app_type") == "maps":
-        client_ip = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
-        if client_ip:
-            client_ip = client_ip.split(",", 1)[0].strip()
-        elif request.client:
-            client_ip = request.client.host
-        if client_ip:
-            params["_client_ip"] = client_ip
 
-        action = intent.get("action")
-        if action == "select" and session_id:
-            idx_raw = params.get("index")
-            if idx_raw is not None:
-                m = re.search(r"\d+", str(idx_raw))
-                if m:
-                    params["index"] = m.group(0)
+    client_ip = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if client_ip:
+        client_ip = client_ip.split(",", 1)[0].strip()
+    elif request.client:
+        client_ip = request.client.host
 
-        if action in ["select", "zoom_in", "zoom_out", "zoom_reset"] and session_id:
-            last_maps = context_manager.get_last_app_result(session_id, "maps")
-            if isinstance(last_maps, dict):
-                if not str(params.get("query") or "").strip():
-                    prev_query = str(last_maps.get("query") or "").strip()
-                    if prev_query:
-                        params["query"] = prev_query
-                if isinstance(last_maps.get("results"), list) and not isinstance(params.get("results"), list):
-                    params["results"] = last_maps.get("results")
-                if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
-                    params["user_location"] = last_maps.get("user_location")
-                if last_maps.get("map_delta") is not None and params.get("map_delta") is None:
-                    params["map_delta"] = last_maps.get("map_delta")
-                if action != "select":
-                    if last_maps.get("selected_index") is not None and params.get("selected_index") is None and params.get("index") is None:
-                        params["selected_index"] = last_maps.get("selected_index")
+    intent = apply_app_workflow(
+        session_id=session_id,
+        command=text,
+        intent=intent,
+        session_manager=session_manager,
+        context_manager=context_manager,
+        extra={"client_ip": client_ip},
+    )
+
+    params = intent.get("params", {})
+    if not isinstance(params, dict):
+        params = {}
     if intent["app_type"] in ["internet", "maps"]:
         view_data = await ViewGenerator.generate_async(intent["app_type"], intent["action"], params=params)
     else:
@@ -4218,46 +4232,32 @@ async def send_command(request: Request, data: Dict):
     
     # Process command using VoiceCommandProcessor
     result = VoiceCommandProcessor.process(command)
-    
+
+    session_id = data.get("session_id") or data.get("client_id")
+
+    client_ip = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if client_ip:
+        client_ip = client_ip.split(",", 1)[0].strip()
+    elif request.client:
+        client_ip = request.client.host
+
+    result = apply_app_workflow(
+        session_id=session_id,
+        command=command,
+        intent=result,
+        session_manager=session_manager,
+        context_manager=context_manager,
+        extra={"client_ip": client_ip},
+    )
+     
     # Generate view for the command
     if result.get("recognized"):
         app_type = result.get("app_type", "system")
         action = result.get("action", "unknown")
         params = result.get("params", {})
-        session_id = data.get("session_id") or data.get("client_id")
 
-        if app_type == "maps":
-            client_ip = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
-            if client_ip:
-                client_ip = client_ip.split(",", 1)[0].strip()
-            elif request.client:
-                client_ip = request.client.host
-            if client_ip:
-                params["_client_ip"] = client_ip
-
-            if action == "select" and session_id:
-                idx_raw = params.get("index")
-                if idx_raw is not None:
-                    m = re.search(r"\d+", str(idx_raw))
-                    if m:
-                        params["index"] = m.group(0)
-
-            if action in ["select", "zoom_in", "zoom_out", "zoom_reset"] and session_id:
-                last_maps = context_manager.get_last_app_result(session_id, "maps")
-                if isinstance(last_maps, dict):
-                    if not str(params.get("query") or "").strip():
-                        prev_query = str(last_maps.get("query") or "").strip()
-                        if prev_query:
-                            params["query"] = prev_query
-                    if isinstance(last_maps.get("results"), list) and not isinstance(params.get("results"), list):
-                        params["results"] = last_maps.get("results")
-                    if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
-                        params["user_location"] = last_maps.get("user_location")
-                    if last_maps.get("map_delta") is not None and params.get("map_delta") is None:
-                        params["map_delta"] = last_maps.get("map_delta")
-                    if action != "select":
-                        if last_maps.get("selected_index") is not None and params.get("selected_index") is None and params.get("index") is None:
-                            params["selected_index"] = last_maps.get("selected_index")
+        if not isinstance(params, dict):
+            params = {}
 
         if app_type in ["internet", "maps"]:
             view = await ViewGenerator.generate_async(app_type, action, params=params)

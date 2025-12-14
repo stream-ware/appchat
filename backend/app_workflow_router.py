@@ -125,9 +125,12 @@ def apply_app_workflow(
     if not active_app:
         return intent
 
+    updated_intent = dict(intent)
+    updated_intent["active_app"] = active_app
+
     module = _load_workflow_module(active_app)
     if not module:
-        return intent
+        return updated_intent
 
     last_result = None
     if session_id and context_manager and hasattr(context_manager, "get_last_app_result"):
@@ -162,4 +165,4 @@ def apply_app_workflow(
 
             return routed
 
-    return intent
+    return updated_intent
