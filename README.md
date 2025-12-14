@@ -21,7 +21,7 @@
 
 ```bash
 # Klonuj repozytorium
-git clone <repository-url>
+git clone https://github.com/stream-ware/appchat.git
 cd stream-ware/appchat
 
 # Uruchom serwer
@@ -322,7 +322,7 @@ make integration
 
 ## 📄 Licencja
 
-MIT License - zobacz [LICENSE](LICENSE) file.
+Apache License - zobacz [LICENSE](LICENSE) file.
 
 ---
 
