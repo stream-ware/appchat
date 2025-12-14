@@ -1601,6 +1601,12 @@ Przykładowe komendy:
             commandHistory = [];
             localStorage.removeItem('streamware_history');
             renderCommandHistory();
+
+            const messagesEl = document.getElementById('chat-messages');
+            if (messagesEl) {
+                messagesEl.innerHTML = '';
+                addChatMessage('🗑️ Chat wyczyszczony', 'assistant');
+            }
         }
         
         // ===== WEBSOCKET CONNECTION =====

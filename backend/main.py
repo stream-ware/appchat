@@ -36,6 +36,7 @@ from backend.database import db, Database
 from backend.config import config, get_config, reload_config
 from backend.llm_manager import llm_manager, LLMManager
 from backend.app_registry import app_registry, AppRegistry
+from backend.app_workflow_router import apply_app_workflow
 from backend.makefile_converter import makefile_converter, MakefileConverter
 from backend.registry_manager import registry_manager, RegistryManager
 from backend.language_manager import language_manager, LanguageManager
@@ -3097,6 +3098,21 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 
                 # Process command
                 intent = VoiceCommandProcessor.process(command)
+
+                client_ip = websocket.headers.get("x-forwarded-for") or websocket.headers.get("X-Forwarded-For")
+                if client_ip:
+                    client_ip = client_ip.split(",", 1)[0].strip()
+                elif websocket.client:
+                    client_ip = websocket.client.host
+
+                intent = apply_app_workflow(
+                    session_id=client_id,
+                    command=command,
+                    intent=intent,
+                    session_manager=session_manager,
+                    context_manager=context_manager,
+                    extra={"client_ip": client_ip},
+                )
                 
                 # Check permissions
                 user = user_manager.get_user(client_id)
@@ -3113,39 +3129,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 
                 # Generate view (use async for internet/weather to fetch real data)
                 params = intent.get("params", {})
-                if intent.get("app_type") == "maps":
-                    client_ip = websocket.headers.get("x-forwarded-for") or websocket.headers.get("X-Forwarded-For")
-                    if client_ip:
-                        client_ip = client_ip.split(",", 1)[0].strip()
-                    elif websocket.client:
-                        client_ip = websocket.client.host
-                    if client_ip:
-                        params["_client_ip"] = client_ip
-
-                    action = intent.get("action")
-                    if action == "select":
-                        idx_raw = params.get("index")
-                        if idx_raw is not None:
-                            m = re.search(r"\d+", str(idx_raw))
-                            if m:
-                                params["index"] = m.group(0)
-
-                    if action in ["select", "zoom_in", "zoom_out", "zoom_reset"]:
-                        last_maps = context_manager.get_last_app_result(client_id, "maps")
-                        if isinstance(last_maps, dict):
-                            if not str(params.get("query") or "").strip():
-                                prev_query = str(last_maps.get("query") or "").strip()
-                                if prev_query:
-                                    params["query"] = prev_query
-                            if isinstance(last_maps.get("results"), list) and not isinstance(params.get("results"), list):
-                                params["results"] = last_maps.get("results")
-                            if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
-                                params["user_location"] = last_maps.get("user_location")
-                            if last_maps.get("map_delta") is not None and params.get("map_delta") is None:
-                                params["map_delta"] = last_maps.get("map_delta")
-                            if action != "select":
-                                if last_maps.get("selected_index") is not None and params.get("selected_index") is None and params.get("index") is None:
-                                    params["selected_index"] = last_maps.get("selected_index")
+                if not isinstance(params, dict):
+                    params = {}
                 if intent["app_type"] in ["internet", "maps"]:
                     view_data = await ViewGenerator.generate_async(
                         intent["app_type"],

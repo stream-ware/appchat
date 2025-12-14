@@ -178,5 +178,29 @@
         "timezone": "Europe/Warsaw"
       }
     ]
+  },
+  "szemud": {
+    "success": true,
+    "query": "Szemud",
+    "results": [
+      {
+        "name": "Szemud",
+        "country": "Polska",
+        "admin": "Województwo pomorskie",
+        "latitude": 54.48709,
+        "longitude": 18.2228,
+        "population": 1639,
+        "timezone": "Europe/Warsaw"
+      },
+      {
+        "name": "Szemudska Huta",
+        "country": "Polska",
+        "admin": "Województwo pomorskie",
+        "latitude": 54.46829,
+        "longitude": 18.22467,
+        "population": null,
+        "timezone": "Europe/Warsaw"
+      }
+    ]
   }
 }
