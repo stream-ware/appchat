@@ -1,0 +1,31 @@
+[app]
+id = "maps"
+name = "🗺️ Mapy"
+version = "1.0.0"
+description = "Global location search and geocoding"
+language = "python"
+author = "Streamware"
+
+enabled = true
+
+[service]
+type = "api"
+url = "https://geocoding-api.open-meteo.com/v1/search"
+health_check = "/api/maps/search?q=Warszawa"
+timeout_seconds = 10
+
+[commands]
+"mapa" = ["maps", "search"]
+"maps" = ["maps", "search"]
+"znajdź miasto" = ["maps", "search"]
+
+[commands.keywords]
+maps = ["mapa", "maps", "miasto", "miejscowość", "lokalizacja", "geokoduj", "adres"]
+
+[scripts]
+search_location = "scripts/search_location.py"
+
+[ui]
+icon = "🗺️"
+color = "#0ea5e9"
+dashboard_widget = true

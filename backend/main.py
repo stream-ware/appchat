@@ -11,7 +11,9 @@ import random
 import uuid
 import logging
 import os
+import re
 import ssl
+import mimetypes
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, asdict, field
@@ -21,7 +23,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -40,6 +42,7 @@ from backend.language_manager import language_manager, LanguageManager
 from backend.app_generator import app_generator, AppGenerator
 from backend.data_loader import data_loader, DataLoader
 from services.context.conversation_context import context_manager
+from services.text2filesystem import Text2Filesystem
 try:
     import aiomqtt
     MQTT_AVAILABLE = True
@@ -845,6 +848,13 @@ class VoiceCommandProcessor:
         "internet": {
             "weather": {"param": "city", "keywords": ["pogoda", "weather"], "extract_after": True},
         },
+        "media": {
+            "folder": {"param": "path", "keywords": ["media folder", "media katalog", "media directory"], "extract_after": True},
+        },
+        "maps": {
+            "search": {"param": "query", "keywords": ["mapa", "szukaj", "znajdź"], "extract_after": True},
+            "select": {"param": "index", "keywords": ["wybierz", "select"], "extract_after": True},
+        },
         "services": {
             "start": {"param": "name", "keywords": ["uruchom usługę", "start service"], "extract_after": True},
             "stop": {"param": "name", "keywords": ["zatrzymaj usługę", "stop service"], "extract_after": True},
@@ -983,10 +993,14 @@ class ViewGenerator:
             return cls._generate_analytics_view(action, data)
         elif app_type == "internet":
             return cls._generate_internet_view(action, data)
+        elif app_type == "maps":
+            return cls._generate_maps_view(action, data)
         elif app_type == "system":
             return cls._generate_system_view(action)
         elif app_type == "files":
             return cls._generate_files_view(action, data)
+        elif app_type == "media":
+            return cls._generate_media_view(action, data)
         elif app_type == "cloud_storage":
             return cls._generate_cloud_storage_view(action, data)
         elif app_type == "curllm":
@@ -1041,6 +1055,188 @@ class ViewGenerator:
                 {"id": f"refresh_{app_type}", "label": "Odśwież", "icon": "🔄"},
             ]
         }
+
+    @classmethod
+    def _generate_media_view(cls, action: str, data: Any = None) -> Dict:
+        from pathlib import Path
+
+        params = data if isinstance(data, dict) else {}
+
+        home = Path.home()
+        roots = [
+            {"id": "pictures", "label": "🖼️ Zdjęcia", "path": home / "Pictures"},
+            {"id": "videos", "label": "🎬 Filmy", "path": home / "Videos"},
+            {"id": "downloads", "label": "📥 Pobrane", "path": home / "Downloads"},
+            {"id": "documents", "label": "📄 Dokumenty", "path": home / "Documents"},
+        ]
+
+        def root_actions() -> List[Dict[str, Any]]:
+            actions: List[Dict[str, Any]] = []
+            for r in roots:
+                actions.append({
+                    "id": f"open_{r['id']}",
+                    "label": r["label"],
+                    "cmd": f"media folder {str(r['path'])}",
+                })
+            return actions
+
+        current_path: Optional[Path] = None
+        filter_mode = "all"
+
+        if action == "pictures":
+            current_path = home / "Pictures"
+            filter_mode = "images"
+        elif action == "videos":
+            current_path = home / "Videos"
+            filter_mode = "videos"
+        elif action == "folder":
+            requested = (params.get("path") or params.get("folder") or params.get("dir") or "").strip()
+            if requested:
+                resolved = Text2Filesystem._resolve_path(str(requested))
+                if not resolved:
+                    return {
+                        "type": "media",
+                        "view": "error",
+                        "title": "🖼️ Media",
+                        "subtitle": "Nieprawidłowa ścieżka (poza dozwolonymi katalogami)",
+                        "error": "blocked_path",
+                        "requested": requested,
+                        "allowed_roots": [
+                            {"id": r["id"], "label": r["label"], "path": str(r["path"]), "exists": r["path"].exists()}
+                            for r in roots
+                        ],
+                        "actions": root_actions(),
+                    }
+                current_path = resolved
+            else:
+                current_path = home / "Pictures"
+                filter_mode = "all"
+        else:
+            current_path = home / "Pictures"
+
+        resolved_current = Text2Filesystem._resolve_path(str(current_path)) if current_path else None
+        if not resolved_current or not resolved_current.exists() or not resolved_current.is_dir():
+            fallback = next((r["path"] for r in roots if r["path"].exists() and r["path"].is_dir()), home)
+            resolved_current = Text2Filesystem._resolve_path(str(fallback))
+
+        if not resolved_current or not resolved_current.exists() or not resolved_current.is_dir():
+            return {
+                "type": "media",
+                "view": "error",
+                "title": "🖼️ Media",
+                "subtitle": "Brak dostępu do katalogów mediów",
+                "error": "no_access",
+                "allowed_roots": [
+                    {"id": r["id"], "label": r["label"], "path": str(r["path"]), "exists": r["path"].exists()}
+                    for r in roots
+                ],
+                "actions": root_actions(),
+            }
+
+        current_path = resolved_current
+
+        image_exts = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+        video_exts = {".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v"}
+
+        folders: List[Dict[str, Any]] = []
+        media_items: List[Dict[str, Any]] = []
+
+        try:
+            for item in sorted(current_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+                try:
+                    if item.is_dir():
+                        stat = item.stat()
+                        folders.append({
+                            "name": item.name,
+                            "path": str(item),
+                            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            "cmd": f"media folder {str(item)}",
+                        })
+                        continue
+
+                    if not item.is_file():
+                        continue
+
+                    ext = item.suffix.lower()
+                    kind = "image" if ext in image_exts else "video" if ext in video_exts else None
+                    if not kind:
+                        continue
+                    if filter_mode == "images" and kind != "image":
+                        continue
+                    if filter_mode == "videos" and kind != "video":
+                        continue
+
+                    stat = item.stat()
+                    media_items.append({
+                        "name": item.name,
+                        "path": str(item),
+                        "kind": kind,
+                        "ext": ext,
+                        "size": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    })
+                except Exception:
+                    continue
+        except Exception:
+            folders = []
+            media_items = []
+
+        media_items.sort(key=lambda x: x.get("modified", ""), reverse=True)
+        media_items = media_items[:200]
+        folders = folders[:200]
+
+        root_for_current: Optional[Path] = None
+        for r in roots:
+            try:
+                current_path.relative_to(r["path"])
+                root_for_current = r["path"]
+                break
+            except Exception:
+                continue
+
+        parent_path = None
+        if root_for_current and current_path != root_for_current:
+            parent_path = str(current_path.parent)
+
+        stats = [
+            {"label": "Folder", "value": current_path.name or str(current_path), "icon": "📂"},
+            {"label": "Katalogów", "value": len(folders), "icon": "📁"},
+            {"label": "Mediów", "value": len(media_items), "icon": "🖼️" if filter_mode != "videos" else "🎬"},
+        ]
+
+        actions = [
+            {"id": "browse", "label": "🖼️ Media", "cmd": "media"},
+            {"id": "pictures", "label": "🖼️ Zdjęcia", "cmd": "pokaż zdjęcia"},
+            {"id": "videos", "label": "🎬 Filmy", "cmd": "pokaż filmy"},
+        ]
+
+        if parent_path:
+            actions.insert(0, {"id": "up", "label": "⬆️ W górę", "cmd": f"media folder {parent_path}"})
+
+        actions.extend(root_actions())
+
+        return {
+            "type": "media",
+            "view": "browser",
+            "title": "🖼️ Media",
+            "subtitle": f"{current_path}",
+            "filter": filter_mode,
+            "current_path": str(current_path),
+            "parent_path": parent_path,
+            "allowed_roots": [
+                {"id": r["id"], "label": r["label"], "path": str(r["path"]), "exists": r["path"].exists()}
+                for r in roots
+            ],
+            "folders": folders,
+            "items": media_items,
+            "stats": stats,
+            "quick_actions": [
+                {"cmd": "media", "label": "🖼️ Media", "icon": "🖼️"},
+                {"cmd": "pokaż zdjęcia", "label": "Zdjęcia", "icon": "🖼️"},
+                {"cmd": "pokaż filmy", "label": "Filmy", "icon": "🎬"},
+            ],
+            "actions": actions,
+        }
     
     @classmethod
     async def generate_async(cls, app_type: str, action: str, data: Any = None, params: Dict = None) -> Dict[str, Any]:
@@ -1048,6 +1244,8 @@ class ViewGenerator:
         params = params or {}
         if app_type == "internet":
             return await cls._generate_internet_view_async(action, data, params)
+        if app_type == "maps":
+            return await cls._generate_maps_view_async(action, data, params)
         return cls.generate(app_type, action, data)
     
     @classmethod
@@ -1147,7 +1345,11 @@ class ViewGenerator:
     def _generate_cameras_view(cls, action: str, data: List[CameraFeed] = None) -> Dict:
         """Generate cameras view with real camera data"""
         try:
-            from apps.cameras.camera_manager import get_cameras_list, get_camera_stats
+            from apps.monitoring.cameras.camera_manager import get_cameras_list, get_camera_stats, create_sample_cameras
+
+            if action in ["create_sample", "create_samples", "create_sample_cameras"]:
+                create_sample_cameras()
+
             cameras = get_cameras_list()
             stats = get_camera_stats()
         except:
@@ -1459,26 +1661,28 @@ class ViewGenerator:
                 "subtitle": "Status wszystkich usług",
                 "services": [
                     {"name": "HTTP Client", "status": status['http_client'], "icon": "🌐"},
-                    {"name": "MQTT", "status": "active" if MQTT_AVAILABLE else "unavailable", "icon": "📡"},
-                    {"name": "Email SMTP", "status": "active" if EMAIL_AVAILABLE else "unavailable", "icon": "📧"},
-                    {"name": "RSS Feeds", "status": f"{status['rss_feeds_count']} feeds", "icon": "📰"},
-                    {"name": "Webhooks", "status": f"{status['webhooks_count']} registered", "icon": "🪝"},
-                    {"name": "Weather API", "status": "active", "icon": "🌤️"},
-                    {"name": "Crypto API", "status": "active", "icon": "💰"},
-                    {"name": "Exchange API", "status": "active", "icon": "💱"},
+                    {"name": "MQTT", "status": status['mqtt'], "icon": "📡"},
+                    {"name": "Email", "status": status['email'], "icon": "📧"},
+                    {"name": "RSS", "status": status['rss'], "icon": "📰"},
+                    {"name": "Webhooks", "status": status['webhooks'], "icon": "🪝"},
                 ],
                 "stats": [
                     {"label": "HTTP", "value": status['http_client'], "icon": "🌐"},
-                    {"label": "MQTT", "value": "✓" if MQTT_AVAILABLE else "✗", "icon": "📡"},
-                    {"label": "Email", "value": "✓" if EMAIL_AVAILABLE else "✗", "icon": "📧"},
-                    {"label": "RSS", "value": status['rss_feeds_count'], "icon": "📰"},
+                    {"label": "MQTT", "value": status['mqtt'], "icon": "📡"},
+                    {"label": "Email", "value": status['email'], "icon": "📧"},
+                    {"label": "RSS", "value": status['rss'], "icon": "📰"},
+                    {"label": "Webhooks", "value": status['webhooks_count'], "icon": "🪝"},
                 ],
                 "actions": [
-                    {"id": "test_all", "label": "Testuj wszystko", "icon": "🧪"},
-                    {"id": "refresh_status", "label": "Odśwież", "icon": "🔄"},
+                    {"id": "weather", "label": "Pogoda", "icon": "🌤️"},
+                    {"id": "crypto", "label": "Krypto", "icon": "₿"},
+                    {"id": "exchange", "label": "Waluty", "icon": "💱"},
+                    {"id": "rss", "label": "RSS", "icon": "📰"},
+                    {"id": "send_email", "label": "Email", "icon": "📧"},
+                    {"id": "mqtt", "label": "MQTT", "icon": "📡"},
                 ]
             }
-        
+
         else:
             return {
                 "type": "internet",
@@ -1654,6 +1858,208 @@ class ViewGenerator:
         
         return cls._generate_internet_view(action, data)
     
+    @classmethod
+    def _generate_maps_view(cls, action: str, data: Any = None) -> Dict:
+        try:
+            from apps.maps import search_locations, get_popular_cities
+        except:
+            return cls._generate_empty_view()
+
+        params = data if isinstance(data, dict) else {}
+        query = (params.get("query") or "").strip()
+        limit = params.get("limit", 5)
+        precomputed_results = params.get("results") if isinstance(params.get("results"), list) else None
+
+        if not query:
+            return {
+                "type": "maps",
+                "view": "search",
+                "title": "🗺️ Mapy",
+                "subtitle": "Wyszukiwanie miejscowości (globalnie)",
+                "query": "",
+                "results": [],
+                "popular": get_popular_cities(),
+                "quick_actions": [
+                    {"cmd": "mapa Warszawa", "label": "Warszawa", "icon": "📍"},
+                    {"cmd": "mapa Kraków", "label": "Kraków", "icon": "📍"},
+                    {"cmd": "mapa Berlin", "label": "Berlin", "icon": "📍"},
+                ],
+            }
+
+        if precomputed_results is not None:
+            results = precomputed_results
+        else:
+            result = search_locations(query, limit=limit)
+            results = result.get("results", []) if isinstance(result, dict) else []
+
+        import math
+
+        user_location = params.get("user_location") if isinstance(params.get("user_location"), dict) else None
+
+        def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+            r = 6371.0
+            p1 = math.radians(lat1)
+            p2 = math.radians(lat2)
+            d1 = math.radians(lat2 - lat1)
+            d2 = math.radians(lon2 - lon1)
+            a = math.sin(d1 / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(d2 / 2) ** 2
+            c = 2 * math.asin(math.sqrt(a))
+            return r * c
+
+        def osm_urls(lat: float, lon: float, delta: float = 0.08) -> Dict[str, str]:
+            left = lon - delta
+            right = lon + delta
+            top = lat + delta
+            bottom = lat - delta
+            embed_url = (
+                "https://www.openstreetmap.org/export/embed.html"
+                f"?bbox={left}%2C{bottom}%2C{right}%2C{top}"
+                "&layer=mapnik"
+                f"&marker={lat}%2C{lon}"
+            )
+            open_url = f"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}#map=12/{lat}/{lon}"
+            return {"embed_url": embed_url, "open_url": open_url}
+
+        enriched_results: List[Dict[str, Any]] = []
+        for r in results:
+            if not isinstance(r, dict):
+                continue
+            rr = dict(r)
+
+            if user_location and user_location.get("latitude") is not None and user_location.get("longitude") is not None:
+                try:
+                    if rr.get("latitude") is not None and rr.get("longitude") is not None:
+                        dist = haversine_km(
+                            float(user_location["latitude"]),
+                            float(user_location["longitude"]),
+                            float(rr["latitude"]),
+                            float(rr["longitude"]),
+                        )
+                        rr["distance_km"] = round(dist, 1)
+                except Exception:
+                    pass
+
+            enriched_results.append(rr)
+
+        selected_index: Optional[int] = None
+        raw_idx = params.get("selected_index")
+        if raw_idx is None:
+            raw_idx = params.get("index")
+
+        if raw_idx is not None:
+            try:
+                idx = int(str(raw_idx).strip())
+                if idx >= 1:
+                    idx = idx - 1
+                if 0 <= idx < len(enriched_results):
+                    selected_index = idx
+            except Exception:
+                selected_index = None
+
+        if selected_index is None and enriched_results:
+            candidates = [
+                (i, r.get("distance_km"))
+                for i, r in enumerate(enriched_results)
+                if isinstance(r.get("distance_km"), (int, float))
+            ]
+            if candidates:
+                selected_index = min(candidates, key=lambda x: x[1])[0]
+            else:
+                selected_index = 0
+
+        selected = enriched_results[selected_index] if selected_index is not None and enriched_results else None
+
+        map_data = None
+        if selected and selected.get("latitude") is not None and selected.get("longitude") is not None:
+            try:
+                map_data = {
+                    "center": {"lat": float(selected["latitude"]), "lon": float(selected["longitude"])},
+                    **osm_urls(float(selected["latitude"]), float(selected["longitude"])),
+                }
+            except Exception:
+                map_data = None
+
+        stats = [
+            {"label": "Zapytanie", "value": query, "icon": "🔎"},
+            {"label": "Wyników", "value": len(enriched_results), "icon": "📍"},
+        ]
+        if user_location and user_location.get("city"):
+            stats.append({"label": "Twoja okolica", "value": user_location.get("city"), "icon": "🧭"})
+        if selected and selected.get("distance_km") is not None:
+            stats.append({"label": "Najbliżej", "value": f"~{selected.get('distance_km')} km", "icon": "🎯"})
+
+        quick_actions: List[Dict[str, Any]] = []
+        if len(enriched_results) > 1:
+            for i, r in enumerate(enriched_results[:5]):
+                label_name = r.get("name") or ""
+                admin = r.get("admin")
+                country = r.get("country")
+                meta = []
+                if admin:
+                    meta.append(admin)
+                if country:
+                    meta.append(country)
+                suffix = f" ({', '.join(meta)})" if meta else ""
+                quick_actions.append(
+                    {
+                        "cmd": f"mapa wybierz {i+1}",
+                        "label": f"{i+1}. {label_name}{suffix}",
+                        "icon": "🎯" if selected_index == i else "📍",
+                    }
+                )
+
+        quick_actions.append({"cmd": f"mapa {query}", "label": "Odśwież", "icon": "🔄"})
+
+        return {
+            "type": "maps",
+            "view": "search",
+            "title": "🗺️ Mapy",
+            "subtitle": f"Wyniki dla: {query}",
+            "query": query,
+            "results": enriched_results,
+            "selected_index": selected_index,
+            "selected": selected,
+            "user_location": user_location,
+            "map": map_data,
+            "popular": get_popular_cities(),
+            "stats": stats,
+            "quick_actions": quick_actions,
+            "actions": [
+                {"id": "mapa", "label": "Szukaj", "icon": "🔎"},
+            ],
+        }
+
+    @classmethod
+    async def _generate_maps_view_async(cls, action: str, data: Any = None, params: Dict = None) -> Dict:
+        params = params or {}
+
+        merged: Dict[str, Any] = {}
+        if isinstance(data, dict):
+            merged.update(data)
+        merged.update(params)
+
+        query = (merged.get("query") or "").strip()
+        if not query:
+            return cls._generate_maps_view(action, merged)
+
+        try:
+            from apps.maps import search_locations, map_service
+        except:
+            return cls._generate_empty_view()
+
+        client_ip = merged.get("_client_ip") or merged.get("client_ip")
+        if client_ip and not isinstance(merged.get("user_location"), dict):
+            user_location = await asyncio.to_thread(map_service.geolocate_ip, client_ip)
+            if user_location:
+                merged["user_location"] = user_location
+
+        limit = merged.get("limit", 5)
+        if not isinstance(merged.get("results"), list):
+            result = await asyncio.to_thread(search_locations, query, limit)
+            merged["query"] = query
+            merged["results"] = result.get("results", []) if isinstance(result, dict) else []
+        return cls._generate_maps_view(action, merged)
+
     @classmethod
     def _generate_system_view(cls, action: str) -> Dict:
         if action == "help":
@@ -2095,6 +2501,8 @@ class ResponseGenerator:
             return cls._documents_response(action, view_data)
         elif app_type == "cameras":
             return cls._cameras_response(action, view_data)
+        elif app_type == "maps":
+            return cls._maps_response(action, view_data)
         elif app_type == "sales":
             return cls._sales_response(action, view_data)
         elif app_type == "home":
@@ -2103,10 +2511,188 @@ class ResponseGenerator:
             return cls._analytics_response(action, view_data)
         elif app_type == "internet":
             return cls._internet_response(action, view_data)
+        elif app_type == "files":
+            return cls._files_response(action, view_data)
+        elif app_type == "media":
+            return cls._media_response(action, view_data)
+        elif app_type == "cloud_storage":
+            return cls._cloud_storage_response(action, view_data)
+        elif app_type == "registry":
+            return cls._registry_response(action, view_data)
+        elif app_type == "diagnostics":
+            return cls._diagnostics_response(action, view_data)
+        elif app_type == "curllm":
+            return cls._curllm_response(action, view_data)
         elif app_type == "system":
             return cls._system_response(action)
         
         return "OK, wyświetlam."
+
+    @classmethod
+    def _maps_response(cls, action: str, view: Dict) -> str:
+        query = (view.get("query") or "").strip()
+        results = view.get("results") or []
+        if not query:
+            return "Podaj nazwę miejscowości, np. 'mapa Berlin'."
+
+        if not isinstance(results, list) or not results:
+            return f"Nie znaleziono wyników dla: {query}."
+
+        selected = view.get("selected") if isinstance(view.get("selected"), dict) else None
+        selected_index = view.get("selected_index")
+        user_location = view.get("user_location") if isinstance(view.get("user_location"), dict) else None
+
+        def fmt_loc(r: Dict) -> str:
+            name = (r.get("name") or "").strip()
+            admin = r.get("admin")
+            country = r.get("country")
+            meta = []
+            if admin:
+                meta.append(str(admin))
+            if country:
+                meta.append(str(country))
+            suffix = f" ({', '.join(meta)})" if meta else ""
+            return f"{name}{suffix}" if name else suffix.strip() or query
+
+        chosen = None
+        if selected and isinstance(selected, dict):
+            chosen = fmt_loc(selected)
+        elif results and isinstance(results[0], dict):
+            chosen = fmt_loc(results[0])
+        else:
+            chosen = query
+
+        dist_km = None
+        if selected and isinstance(selected.get("distance_km"), (int, float)):
+            dist_km = selected.get("distance_km")
+
+        base = ""
+        if action == "select":
+            base = f"Wybrano: {chosen}. Wyświetlam mapę."
+        else:
+            if user_location and dist_km is not None and len(results) > 1:
+                loc_label = (user_location.get("city") or user_location.get("region") or user_location.get("country") or "Twojej lokalizacji")
+                base = f"Znalazłem {len(results)} wyników dla {query}. Na podstawie IP ({loc_label}) wybrałem najbliższy: {chosen}. Wyświetlam mapę."
+            else:
+                base = f"Znalazłem {len(results)} wyników dla {query}. Wyświetlam mapę: {chosen}."
+
+        parts = [base]
+        if dist_km is not None:
+            parts.append(f"(~{dist_km} km)")
+
+        if len(results) > 1:
+            options = []
+            for i, r in enumerate(results[:5]):
+                if not isinstance(r, dict) or not r.get("name"):
+                    continue
+                label = fmt_loc(r)
+                if isinstance(selected_index, int) and selected_index == i:
+                    label = f"{label}"
+                options.append(f"{i+1}. {label}")
+            if options:
+                parts.append("Możesz wybrać inny wynik: " + "; ".join(options) + ".")
+            parts.append("Napisz: 'mapa wybierz 2' (numer z listy).")
+
+        return " ".join([p for p in parts if p])
+
+    @classmethod
+    def _cloud_storage_response(cls, action: str, view: Dict) -> str:
+        if view.get("view") == "connect_form":
+            provider = view.get("provider_name") or view.get("provider_id") or "usługi"
+            return f"Otwieram formularz połączenia: {provider}."
+
+        providers = view.get("providers") or []
+        if providers:
+            parts = []
+            connected = 0
+            for p in providers:
+                if not isinstance(p, dict):
+                    continue
+                status = p.get("status")
+                name = p.get("name") or p.get("id")
+                if status == "connected":
+                    connected += 1
+                parts.append(f"{name}: {'✅' if status == 'connected' else '❌'}")
+            return f"Chmura: {connected}/{len(parts)} połączone. " + ", ".join(parts)
+
+        return "Wyświetlam integracje chmury."
+
+    @classmethod
+    def _registry_response(cls, action: str, view: Dict) -> str:
+        regs = view.get("registries") or []
+        if regs:
+            names = [r.get("name") for r in regs if isinstance(r, dict) and r.get("name")]
+            preview = ", ".join(names[:4])
+            return f"Wyświetlam rejestry: {len(regs)}. {preview}." if preview else f"Wyświetlam rejestry: {len(regs)}."
+        return "Brak skonfigurowanych rejestrów."
+
+    @classmethod
+    def _diagnostics_response(cls, action: str, view: Dict) -> str:
+        summary = view.get("summary") or {}
+        score = summary.get("health_score")
+        functional = summary.get("functional")
+        errors = summary.get("errors")
+        if score is not None:
+            return f"Diagnostyka: Health Score {score}%. Funkcjonalne: {functional}. Błędy: {errors}."
+        return "Uruchamiam diagnostykę systemu."
+
+    @classmethod
+    def _curllm_response(cls, action: str, view: Dict) -> str:
+        subtitle = view.get("subtitle")
+        if subtitle:
+            return f"LLM: {subtitle}."
+        return "Wyświetlam status LLM."
+
+    @classmethod
+    def _files_response(cls, action: str, view: Dict) -> str:
+        from pathlib import Path
+
+        home = Path.home()
+        docs_path = home / "Documents"
+        downloads_path = home / "Downloads"
+
+        def list_recent_files(path: Path, limit: int = 5) -> List[str]:
+            if not path.exists():
+                return []
+            files = [p for p in path.glob("*") if p.is_file()]
+            files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            return [p.name for p in files[:limit]]
+
+        # Prefer explicit listing for downloads/documents actions
+        if action in ["downloads", "list_downloads"]:
+            items = list_recent_files(downloads_path, 6)
+            if items:
+                return "Pobrane (ostatnie): " + ", ".join(items)
+            return "Folder Pobrane jest pusty lub niedostępny."
+
+        if action in ["documents", "list_docs"]:
+            items = list_recent_files(docs_path, 6)
+            if items:
+                return "Dokumenty (ostatnie): " + ", ".join(items)
+            return "Folder Dokumenty jest pusty lub niedostępny."
+
+        # Generic dashboard response
+        recent = [f.get("name") for f in (view.get("recent_files") or []) if isinstance(f, dict) and f.get("name")]
+        if recent:
+            return "Ostatnie pliki: " + ", ".join(recent[:6])
+        return "Wyświetlam menedżer plików."
+
+    @classmethod
+    def _media_response(cls, action: str, view: Dict) -> str:
+        if view.get("view") == "error":
+            return "Nie mogę otworzyć tego folderu z mediami."
+
+        current_path = view.get("current_path") or ""
+        items = view.get("items") or []
+        folders = view.get("folders") or []
+
+        if action == "pictures":
+            return f"Wyświetlam zdjęcia ({len(items)}) w: {current_path}"
+        if action == "videos":
+            return f"Wyświetlam filmy ({len(items)}) w: {current_path}"
+        if action == "folder":
+            return f"Otwieram folder: {current_path} (folderów: {len(folders)}, mediów: {len(items)})"
+        return f"Wyświetlam media (folderów: {len(folders)}, mediów: {len(items)})"
     
     @classmethod
     def _documents_response(cls, action: str, view: Dict) -> str:
@@ -2131,6 +2717,8 @@ class ResponseGenerator:
             "show_grid": f"Wyświetlam podgląd kamer. {stats.get('Kamery online', '0/0')} online. Wykryto {stats.get('Wykryte obiekty', 0)} obiektów. {stats.get('Aktywne alerty', 0)} aktywnych alertów.",
             "show_motion": f"Ostatni ruch wykryty o {stats.get('Ostatni ruch', '-')}. Aktualnie wykrytych obiektów: {stats.get('Wykryte obiekty', 0)}.",
             "show_alerts": f"Masz {stats.get('Aktywne alerty', 0)} aktywnych alertów.",
+            "create_sample_cameras": "Tworzę przykładowe kamery do testów.",
+            "test_connections": "Testuję połączenia z kamerami.",
             "parking": "Wyświetlam kamery parkingu.",
             "entrance": "Wyświetlam kamerę wejścia głównego.",
             "warehouse": "Wyświetlam kamery magazynu.",
@@ -2343,6 +2931,25 @@ async def root():
 async def health():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+@app.get("/api/media/file")
+async def get_media_file(path: str):
+    resolved = Text2Filesystem._resolve_path(str(path or ""))
+    if not resolved:
+        raise HTTPException(status_code=403, detail="Forbidden path")
+
+    if not resolved.exists() or not resolved.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    image_exts = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+    video_exts = {".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v"}
+
+    ext = resolved.suffix.lower()
+    if ext not in image_exts and ext not in video_exts:
+        raise HTTPException(status_code=415, detail="Unsupported media type")
+
+    media_type, _ = mimetypes.guess_type(str(resolved))
+    return FileResponse(str(resolved), media_type=media_type)
+
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(websocket, client_id)
@@ -2439,7 +3046,33 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 
                 # Generate view (use async for internet/weather to fetch real data)
                 params = intent.get("params", {})
-                if intent["app_type"] == "internet":
+                if intent.get("app_type") == "maps":
+                    client_ip = websocket.headers.get("x-forwarded-for") or websocket.headers.get("X-Forwarded-For")
+                    if client_ip:
+                        client_ip = client_ip.split(",", 1)[0].strip()
+                    elif websocket.client:
+                        client_ip = websocket.client.host
+                    if client_ip:
+                        params["_client_ip"] = client_ip
+
+                    if intent.get("action") == "select":
+                        idx_raw = params.get("index")
+                        if idx_raw is not None:
+                            m = re.search(r"\d+", str(idx_raw))
+                            if m:
+                                params["index"] = m.group(0)
+
+                        last_maps = context_manager.get_last_app_result(client_id, "maps")
+                        if isinstance(last_maps, dict):
+                            if not str(params.get("query") or "").strip():
+                                prev_query = str(last_maps.get("query") or "").strip()
+                                if prev_query:
+                                    params["query"] = prev_query
+                            if isinstance(last_maps.get("results"), list) and not isinstance(params.get("results"), list):
+                                params["results"] = last_maps.get("results")
+                            if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
+                                params["user_location"] = last_maps.get("user_location")
+                if intent["app_type"] in ["internet", "maps"]:
                     view_data = await ViewGenerator.generate_async(
                         intent["app_type"],
                         intent["action"],
@@ -2448,7 +3081,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 else:
                     view_data = ViewGenerator.generate(
                         intent["app_type"],
-                        intent["action"]
+                        intent["action"],
+                        params
                     )
                 
                 # Generate response
@@ -2505,10 +3139,36 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     # Execute the command directly
                     intent = VoiceCommandProcessor.process(cmd)
                     params = intent.get("params", {})
-                    if intent["app_type"] == "internet":
+                    if intent.get("app_type") == "maps":
+                        client_ip = websocket.headers.get("x-forwarded-for") or websocket.headers.get("X-Forwarded-For")
+                        if client_ip:
+                            client_ip = client_ip.split(",", 1)[0].strip()
+                        elif websocket.client:
+                            client_ip = websocket.client.host
+                        if client_ip:
+                            params["_client_ip"] = client_ip
+
+                        if intent.get("action") == "select":
+                            idx_raw = params.get("index")
+                            if idx_raw is not None:
+                                m = re.search(r"\d+", str(idx_raw))
+                                if m:
+                                    params["index"] = m.group(0)
+
+                            last_maps = context_manager.get_last_app_result(client_id, "maps")
+                            if isinstance(last_maps, dict):
+                                if not str(params.get("query") or "").strip():
+                                    prev_query = str(last_maps.get("query") or "").strip()
+                                    if prev_query:
+                                        params["query"] = prev_query
+                                if isinstance(last_maps.get("results"), list) and not isinstance(params.get("results"), list):
+                                    params["results"] = last_maps.get("results")
+                                if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
+                                    params["user_location"] = last_maps.get("user_location")
+                    if intent["app_type"] in ["internet", "maps"]:
                         view_data = await ViewGenerator.generate_async(intent["app_type"], intent["action"], params=params)
                     else:
-                        view_data = ViewGenerator.generate(intent["app_type"], intent["action"])
+                        view_data = ViewGenerator.generate(intent["app_type"], intent["action"], params)
                     response_text = ResponseGenerator.generate(intent, view_data)
                     
                     await manager.send_message(client_id, {
@@ -2554,12 +3214,46 @@ async def camera_stream(camera_id: str):
 
 # REST endpoint for testing
 @app.post("/api/command")
-async def process_command(command: Dict):
+async def process_command(request: Request, command: Dict):
     text = command.get("text", "")
     logger.info(f"📨 REST command: {text}")
     intent = VoiceCommandProcessor.process(text)
-    view_data = ViewGenerator.generate(intent["app_type"], intent["action"])
+    params = intent.get("params", {})
+    session_id = command.get("session_id") or command.get("client_id")
+    if intent.get("app_type") == "maps":
+        client_ip = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+        if client_ip:
+            client_ip = client_ip.split(",", 1)[0].strip()
+        elif request.client:
+            client_ip = request.client.host
+        if client_ip:
+            params["_client_ip"] = client_ip
+
+        if intent.get("action") == "select" and session_id:
+            idx_raw = params.get("index")
+            if idx_raw is not None:
+                m = re.search(r"\d+", str(idx_raw))
+                if m:
+                    params["index"] = m.group(0)
+
+            last_maps = context_manager.get_last_app_result(session_id, "maps")
+            if isinstance(last_maps, dict):
+                if not str(params.get("query") or "").strip():
+                    prev_query = str(last_maps.get("query") or "").strip()
+                    if prev_query:
+                        params["query"] = prev_query
+                if isinstance(last_maps.get("results"), list) and not isinstance(params.get("results"), list):
+                    params["results"] = last_maps.get("results")
+                if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
+                    params["user_location"] = last_maps.get("user_location")
+    if intent["app_type"] in ["internet", "maps"]:
+        view_data = await ViewGenerator.generate_async(intent["app_type"], intent["action"], params=params)
+    else:
+        view_data = ViewGenerator.generate(intent["app_type"], intent["action"], params)
     response_text = ResponseGenerator.generate(intent, view_data)
+
+    if session_id and intent.get("recognized"):
+        context_manager.update_app_state(session_id, intent["app_type"], intent["action"], view_data)
     
     return {
         "intent": intent,
@@ -2598,6 +3292,7 @@ async def list_commands():
             "home": [k for k, v in intents.items() if v[0] == "home"],
             "analytics": [k for k, v in intents.items() if v[0] == "analytics"],
             "internet": [k for k, v in intents.items() if v[0] == "internet"],
+            "maps": [k for k, v in intents.items() if v[0] == "maps"],
             "system": [k for k, v in intents.items() if v[0] == "system"],
         }
     }
@@ -2659,6 +3354,18 @@ async def integrations_status():
 async def get_weather(city: str = "Warsaw"):
     """Get weather for a city"""
     return await integrations.get_weather(city)
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    return Response(status_code=204)
+
+
+@app.get("/api/maps/search")
+async def search_maps(q: str, limit: int = 5):
+    """Search locations globally (maps/geocoding)."""
+    from apps.maps import search_locations
+    return await asyncio.to_thread(search_locations, q, limit)
 
 @app.get("/api/crypto/{symbol}")
 async def get_crypto(symbol: str = "bitcoin"):
@@ -3430,7 +4137,7 @@ async def get_stt_config(session_id: str = None):
 # ============================================================================
 
 @app.post("/api/command/send")
-async def send_command(data: Dict):
+async def send_command(request: Request, data: Dict):
     """Send command and get response (for shell client)"""
     command = data.get("command", "")
     
@@ -3442,19 +4149,56 @@ async def send_command(data: Dict):
     
     # Generate view for the command
     if result.get("recognized"):
-        view = ViewGenerator.generate(
-            result.get("app_type", "system"),
-            result.get("action", "unknown"),
-            result.get("params", {})
-        )
+        app_type = result.get("app_type", "system")
+        action = result.get("action", "unknown")
+        params = result.get("params", {})
+        session_id = data.get("session_id") or data.get("client_id")
+
+        if app_type == "maps":
+            client_ip = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+            if client_ip:
+                client_ip = client_ip.split(",", 1)[0].strip()
+            elif request.client:
+                client_ip = request.client.host
+            if client_ip:
+                params["_client_ip"] = client_ip
+
+            if action == "select" and session_id:
+                idx_raw = params.get("index")
+                if idx_raw is not None:
+                    m = re.search(r"\d+", str(idx_raw))
+                    if m:
+                        params["index"] = m.group(0)
+
+                last_maps = context_manager.get_last_app_result(session_id, "maps")
+                if isinstance(last_maps, dict):
+                    if not str(params.get("query") or "").strip():
+                        prev_query = str(last_maps.get("query") or "").strip()
+                        if prev_query:
+                            params["query"] = prev_query
+                    if isinstance(last_maps.get("results"), list) and not isinstance(params.get("results"), list):
+                        params["results"] = last_maps.get("results")
+                    if isinstance(last_maps.get("user_location"), dict) and not isinstance(params.get("user_location"), dict):
+                        params["user_location"] = last_maps.get("user_location")
+
+        if app_type in ["internet", "maps"]:
+            view = await ViewGenerator.generate_async(app_type, action, params=params)
+        else:
+            view = ViewGenerator.generate(app_type, action, params)
+
+        response_text = ResponseGenerator.generate(result, view)
+
+        if session_id:
+            context_manager.update_app_state(session_id, app_type, action, view)
         
         return {
             "recognized": True,
             "command": command,
-            "app_type": result.get("app_type"),
-            "action": result.get("action"),
-            "params": result.get("params"),
+            "app_type": app_type,
+            "action": action,
+            "params": params,
             "confidence": result.get("confidence"),
+            "response_text": response_text,
             "view": view
         }
     else:

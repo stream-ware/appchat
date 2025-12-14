@@ -684,6 +684,106 @@
             font-size: 0.85rem;
         }
         
+        .files-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .file-item {
+            display: grid;
+            grid-template-columns: 32px 1fr auto auto;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        
+        .file-item:hover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .file-icon {
+            font-size: 1.25rem;
+        }
+        
+        .file-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .file-size,
+        .file-date {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        .media-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .media-card:hover {
+            border-color: var(--primary);
+        }
+        
+        .media-thumb {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .media-thumb img,
+        .media-thumb video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .media-meta {
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        
+        .media-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.85rem;
+        }
+        
+        .media-badge {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--text-secondary);
+        }
+        
         .info-message {
             padding: 20px;
             background: var(--bg-card);
@@ -1195,6 +1295,14 @@
             transform: scale(1.05);
         }
         
+        .voice-btn.armed {
+            background: var(--warning);
+        }
+        
+        .voice-btn.armed:hover {
+            background: #d97706;
+        }
+        
         .voice-btn.listening {
             background: var(--danger);
             animation: pulse 1s infinite;
@@ -1249,8 +1357,8 @@
         
         /* Responsive */
         @media (max-width: 1200px) {
-            .app-view { flex: 0 0 70%; }
-            .chat-panel { flex: 0 0 30%; }
+            .app-view { flex: 0 0 60%; }
+            .chat-panel { flex: 0 0 40%; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
         
@@ -1386,6 +1494,9 @@ Przykładowe komendy:
         const clientId = 'client_' + Math.random().toString(36).substr(2, 9);
         let ws = null;
         let isListening = false;
+        let voiceEnabled = false;
+        let sttPausedForTTS = false;
+        let sttRestartTimeout = null;
         let recognition = null;
         let currentUser = null;
         let ttsEnabled = true;
@@ -1465,10 +1576,7 @@ Przykładowe komendy:
                 text += `[${time}] ${role}: ${content}\n`;
             });
             
-            navigator.clipboard.writeText(text).then(() => {
-                addChatMessage('📋 Chat skopiowany do schowka!', 'assistant');
-            }).catch(() => {
-                // Fallback for older browsers
+            const fallbackCopy = () => {
                 const textarea = document.createElement('textarea');
                 textarea.value = text;
                 document.body.appendChild(textarea);
@@ -1476,7 +1584,17 @@ Przykładowe komendy:
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
                 addChatMessage('📋 Chat skopiowany do schowka!', 'assistant');
-            });
+            };
+
+            if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    addChatMessage('📋 Chat skopiowany do schowka!', 'assistant');
+                }).catch(() => {
+                    fallbackCopy();
+                });
+            } else {
+                fallbackCopy();
+            }
         }
         
         function clearHistory() {
@@ -1578,6 +1696,7 @@ Przykładowe komendy:
                     renderView(data.view);
                 }
             } else if (data.type === 'view_update') {
+                currentView = data.view;
                 renderView(data.view);
             }
         }
@@ -1599,6 +1718,14 @@ Przykładowe komendy:
                 console.warn('TTS not supported');
                 return;
             }
+
+            const shouldPauseStt = voiceEnabled && isListening && recognition && !sttPausedForTTS;
+            if (shouldPauseStt) {
+                sttPausedForTTS = true;
+                isListening = false;
+                stopVoiceRecognition();
+                updateVoiceButton();
+            }
             
             // Cancel any ongoing speech
             window.speechSynthesis.cancel();
@@ -1614,10 +1741,20 @@ Przykładowe komendy:
             
             utterance.onend = () => {
                 indicator.classList.remove('active');
+                if (sttPausedForTTS) {
+                    sttPausedForTTS = false;
+                    scheduleVoiceRestart(250);
+                    updateVoiceButton();
+                }
             };
             
             utterance.onerror = () => {
                 indicator.classList.remove('active');
+                if (sttPausedForTTS) {
+                    sttPausedForTTS = false;
+                    scheduleVoiceRestart(250);
+                    updateVoiceButton();
+                }
             };
             
             window.speechSynthesis.speak(utterance);
@@ -1784,7 +1921,7 @@ Przykładowe komendy:
                 view.actions.forEach(action => {
                     const btn = document.createElement('button');
                     btn.innerHTML = `${action.icon || ''} ${action.label || action.id}`.trim();
-                    btn.onclick = () => handleAction(action.id, view.type);
+                    btn.onclick = () => handleAction(action, view.type);
                     actionsEl.appendChild(btn);
                 });
             }
@@ -1804,6 +1941,8 @@ Przykładowe komendy:
                 contentEl.innerHTML = renderAnalyticsView(view);
             } else if (view.type === 'internet') {
                 contentEl.innerHTML = renderInternetView(view);
+            } else if (view.type === 'maps') {
+                contentEl.innerHTML = renderMapsView(view);
             } else if (view.type === 'system' && view.view === 'help') {
                 contentEl.innerHTML = renderHelpView(view);
             } else if (view.type === 'system' && view.view === 'login') {
@@ -1812,6 +1951,8 @@ Przykładowe komendy:
                 contentEl.innerHTML = renderSystemView(view);
             } else if (view.type === 'files') {
                 contentEl.innerHTML = renderFilesView(view);
+            } else if (view.type === 'media') {
+                contentEl.innerHTML = renderMediaView(view);
             } else if (view.type === 'cloud_storage') {
                 contentEl.innerHTML = renderCloudStorageView(view);
             } else if (view.type === 'curllm') {
@@ -1865,6 +2006,230 @@ Przykładowe komendy:
                 html += '</div></div>';
             }
             
+            html += '</div>';
+            return html;
+        }
+
+        function renderMediaView(view) {
+            const escapeHtml = (value) => {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            };
+
+            const encodeCmd = (cmd) => {
+                return encodeURIComponent(String(cmd || '')).replace(/'/g, '%27');
+            };
+
+            const onclickCmd = (cmd) => {
+                return `sendCommand(decodeURIComponent('${encodeCmd(cmd)}'))`;
+            };
+
+            let html = '<div class="media-dashboard">';
+
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-value">${stat.value}</div>
+                            <div class="stat-label">${stat.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            if (view.quick_actions) {
+                html += '<div class="quick-actions-grid">';
+                view.quick_actions.forEach(action => {
+                    html += `<button class="quick-action-btn" onclick="${onclickCmd(action.cmd)}">${action.icon || ''} ${escapeHtml(action.label)}</button>`;
+                });
+                html += '</div>';
+            }
+
+            if (view.view === 'error') {
+                if (view.subtitle) {
+                    html += `<div class="info-message">${escapeHtml(view.subtitle)}</div>`;
+                }
+
+                const roots = view.allowed_roots || [];
+                if (roots.length > 0) {
+                    html += '<div class="media-section"><h3>📁 Dozwolone katalogi</h3><div class="files-list">';
+                    roots.forEach(r => {
+                        const exists = !!r.exists;
+                        const icon = exists ? '📁' : '🚫';
+                        const cmd = exists ? `media folder ${r.path}` : '';
+                        const onclick = cmd ? `onclick="${onclickCmd(cmd)}" style="cursor:pointer;"` : '';
+                        html += `
+                            <div class="file-item" ${onclick}>
+                                <span class="file-icon">${icon}</span>
+                                <span class="file-name">${escapeHtml(r.label || r.id || '')}</span>
+                                <span class="file-size">${escapeHtml(r.path || '')}</span>
+                                <span class="file-date">${exists ? '✅' : '❌'}</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div></div>';
+                }
+
+                html += '</div>';
+                return html;
+            }
+
+            const folders = view.folders || [];
+            if (folders.length > 0) {
+                html += '<div class="media-section"><h3>📁 Foldery</h3><div class="files-list">';
+                folders.forEach(folder => {
+                    const cmd = folder.cmd || `media folder ${folder.path}`;
+                    const name = folder.name || '';
+                    const modified = folder.modified ? new Date(folder.modified).toLocaleString('pl-PL', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
+                    html += `
+                        <div class="file-item" onclick="${onclickCmd(cmd)}" style="cursor:pointer;">
+                            <span class="file-icon">📁</span>
+                            <span class="file-name">${escapeHtml(name)}</span>
+                            <span class="file-size">${escapeHtml(folder.path || '')}</span>
+                            <span class="file-date">${escapeHtml(modified)}</span>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            }
+
+            const items = view.items || [];
+            if (items.length > 0) {
+                html += '<div class="media-section"><h3>🖼️ Media</h3><div class="media-grid">';
+                items.forEach(item => {
+                    const path = item.path || '';
+                    const name = item.name || '';
+                    const kind = item.kind || '';
+                    const url = `/api/media/file?path=${encodeURIComponent(path)}`;
+                    const badge = kind === 'video' ? '🎬' : '🖼️';
+                    const thumb = kind === 'video'
+                        ? `<video src="${url}" controls preload="metadata"></video>`
+                        : `<img src="${url}" loading="lazy" />`;
+                    html += `
+                        <div class="media-card">
+                            <a href="${url}" target="_blank" rel="noopener noreferrer">
+                                <div class="media-thumb">${thumb}</div>
+                            </a>
+                            <div class="media-meta">
+                                <div class="media-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+                                <div class="media-badge">${badge}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            } else {
+                html += '<div class="info-message">Brak mediów w tym folderze (lub brak obsługiwanych rozszerzeń).</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function renderMapsView(view) {
+            let html = '<div class="maps-dashboard">';
+
+            // Stats
+            if (view.stats) {
+                html += '<div class="stats-grid">';
+                view.stats.forEach(stat => {
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-icon">${stat.icon}</div>
+                            <div class="stat-value">${stat.value}</div>
+                            <div class="stat-label">${stat.label}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Search box
+            const q = (view.query || '').replace(/"/g, '&quot;');
+            html += `
+                <div class="maps-search" style="margin: 14px 0; display:flex; gap: 8px;">
+                    <input id="maps-query" type="text" value="${q}" placeholder="Wpisz miejscowość (np. Berlin, Tokyo, New York)" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text);" />
+                    <button class="quick-action-btn primary" onclick="sendCommand('mapa ' + document.getElementById('maps-query').value)">🔎 Szukaj</button>
+                </div>
+            `;
+
+            const selectedIndex = view.selected_index;
+            const selected = view.selected || null;
+            const map = view.map || null;
+            if (map && map.embed_url) {
+                const selName = selected && selected.name ? selected.name : '';
+                const selAdmin = selected && selected.admin ? `, ${selected.admin}` : '';
+                const selCountry = selected && selected.country ? ` (${selected.country})` : '';
+                const selDist = (selected && selected.distance_km !== undefined && selected.distance_km !== null) ? ` ~${selected.distance_km} km` : '';
+                html += `
+                    <div class="maps-map" style="margin-top: 12px;">
+                        <h3>🗺️ Mapa${selName ? `: ${selName}${selAdmin}${selCountry}${selDist}` : ''}</h3>
+                        <div style="border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--bg-card);">
+                            <iframe src="${map.embed_url}" style="width:100%; height:320px; border:0;" loading="lazy"></iframe>
+                        </div>
+                        ${map.open_url ? `<div style="margin-top: 8px;"><a href="${map.open_url}" target="_blank" rel="noopener noreferrer">Otwórz w OpenStreetMap</a></div>` : ''}
+                    </div>
+                `;
+            }
+
+            // Results
+            const results = view.results || [];
+            if (results.length > 0) {
+                html += '<div class="maps-results" style="margin-top: 10px;">';
+                html += '<h3>📍 Wyniki</h3>';
+                html += '<div class="files-list">';
+                results.forEach((r, idx) => {
+                    const name = r.name || '';
+                    const admin = r.admin ? `, ${r.admin}` : '';
+                    const country = r.country ? ` (${r.country})` : '';
+                    const lat = (r.latitude !== undefined && r.latitude !== null) ? r.latitude : '';
+                    const lon = (r.longitude !== undefined && r.longitude !== null) ? r.longitude : '';
+                    const isSelected = (selectedIndex !== undefined && selectedIndex !== null && selectedIndex === idx);
+                    const icon = isSelected ? '🎯' : '📍';
+                    const dist = (r.distance_km !== undefined && r.distance_km !== null) ? `~${r.distance_km} km` : '';
+                    const tz = r.timezone || '';
+                    const extra = [dist, tz].filter(Boolean).join(' • ');
+                    html += `
+                        <div class="file-item" onclick="sendCommand('mapa wybierz ${idx + 1}')" style="cursor: pointer;">
+                            <span class="file-icon">${icon}</span>
+                            <span class="file-name">${idx + 1}. ${name}${admin}${country}</span>
+                            <span class="file-size">${lat}${lat !== '' ? ', ' : ''}${lon}</span>
+                            <span class="file-date">${extra}</span>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            } else if (view.query) {
+                html += '<div class="empty-registries"><p>Brak wyników dla tego zapytania.</p></div>';
+            }
+
+            // Popular
+            const popular = view.popular || [];
+            if (popular.length > 0) {
+                html += '<div class="maps-popular" style="margin-top: 16px;">';
+                html += '<h3>⭐ Popularne</h3>';
+                html += '<div class="quick-actions-grid">';
+                popular.forEach(p => {
+                    html += `<button class="quick-action-btn" onclick="sendCommand('mapa ${p.name}')">📍 ${p.name}</button>`;
+                });
+                html += '</div></div>';
+            }
+
+            // Quick actions
+            if (view.quick_actions) {
+                html += '<div class="quick-actions-grid" style="margin-top: 16px;">';
+                view.quick_actions.forEach(action => {
+                    html += `<button class="quick-action-btn" onclick="sendCommand('${action.cmd}')">${action.icon || ''} ${action.label}</button>`;
+                });
+                html += '</div>';
+            }
+
             html += '</div>';
             return html;
         }
@@ -1953,21 +2318,6 @@ Przykładowe komendy:
                 `;
                 html += '</div>';
                 return html;
-            }
-            
-            // Stats
-            if (view.stats) {
-                html += '<div class="stats-grid">';
-                view.stats.forEach(stat => {
-                    html += `
-                        <div class="stat-card">
-                            <div class="stat-icon">${stat.icon}</div>
-                            <div class="stat-value">${stat.value}</div>
-                            <div class="stat-label">${stat.label}</div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
             }
             
             // Providers
@@ -2676,8 +3026,24 @@ Przykładowe komendy:
             return `<span class="badge ${classes[status] || 'badge-info'}">${status}</span>`;
         }
         
-        function handleAction(actionId, appType) {
-            sendCommand(actionId);
+        function handleAction(action, appType) {
+            if (!action) return;
+
+            if (typeof action === 'string') {
+                sendCommand(action);
+                return;
+            }
+
+            const cmd = action.cmd || action.command;
+            if (cmd) {
+                sendCommand(cmd);
+                return;
+            }
+
+            const actionId = action.id;
+            if (actionId) {
+                sendCommand(actionId);
+            }
         }
         
         // Get contextual skills for app type
@@ -2744,11 +3110,61 @@ Przykładowe komendy:
                     {cmd: 'status', name: '⚙️ Status', desc: 'Status systemu'},
                     {cmd: 'start', name: '🏠 Start', desc: 'Dashboard'},
                 ],
+                'media': [
+                    {cmd: 'media', name: '🖼️ Media', desc: 'Przeglądaj media'},
+                    {cmd: 'pokaż zdjęcia', name: '🖼️ Zdjęcia', desc: 'Zdjęcia (Pictures)'},
+                    {cmd: 'pokaż filmy', name: '🎬 Filmy', desc: 'Filmy (Videos)'},
+                    {cmd: 'media folder ~/Downloads', name: '📥 Pobrane', desc: 'Media w Downloads'},
+                ],
             };
             return skills[appType] || [];
         }
         
         // ===== VOICE RECOGNITION =====
+        function isSTTEnabled() {
+            const el = document.getElementById('stt-setting');
+            return !el || el.value === 'on';
+        }
+
+        function updateVoiceButton() {
+            const btn = document.getElementById('voice-btn');
+            if (!btn) return;
+            btn.classList.toggle('listening', isListening);
+            btn.classList.toggle('armed', voiceEnabled && !isListening);
+            btn.textContent = voiceEnabled ? '🎙️' : '🎤';
+            btn.title = voiceEnabled ? 'Wycisz mikrofon' : 'Włącz mikrofon';
+        }
+
+        function scheduleVoiceRestart(delayMs = 250) {
+            if (!voiceEnabled || sttPausedForTTS || !isSTTEnabled() || document.hidden) return;
+            if (sttRestartTimeout) return;
+            sttRestartTimeout = setTimeout(() => {
+                sttRestartTimeout = null;
+                startVoiceRecognition();
+            }, delayMs);
+        }
+
+        function startVoiceRecognition() {
+            if (!recognition || isListening || !voiceEnabled || sttPausedForTTS || !isSTTEnabled() || document.hidden) return;
+            try {
+                recognition.start();
+            } catch (e) {
+                scheduleVoiceRestart(600);
+            }
+        }
+
+        function stopVoiceRecognition() {
+            if (sttRestartTimeout) {
+                clearTimeout(sttRestartTimeout);
+                sttRestartTimeout = null;
+            }
+            if (!recognition) return;
+            try {
+                recognition.stop();
+            } catch (e) {
+            }
+        }
+
         function initSpeechRecognition() {
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2759,24 +3175,57 @@ Przykładowe komendy:
                 
                 recognition.onstart = () => {
                     isListening = true;
-                    document.getElementById('voice-btn').classList.add('listening');
+                    updateVoiceButton();
                 };
                 
                 recognition.onend = () => {
                     isListening = false;
-                    document.getElementById('voice-btn').classList.remove('listening');
+                    updateVoiceButton();
+                    scheduleVoiceRestart(250);
                 };
                 
                 recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    sendCommand(transcript);
+                    const result = event.results[event.resultIndex];
+                    const transcript = (result && result[0] && result[0].transcript) ? String(result[0].transcript).trim() : '';
+                    if (transcript) {
+                        sendCommand(transcript);
+                    }
+                    if (voiceEnabled) {
+                        stopVoiceRecognition();
+                    }
                 };
                 
                 recognition.onerror = (event) => {
                     console.error('Speech recognition error:', event.error);
                     isListening = false;
-                    document.getElementById('voice-btn').classList.remove('listening');
+                    updateVoiceButton();
+
+                    if (!voiceEnabled) return;
+
+                    const err = event && event.error ? String(event.error) : '';
+                    if (err === 'aborted') return;
+
+                    if (err === 'not-allowed' || err === 'service-not-allowed') {
+                        voiceEnabled = false;
+                        sttPausedForTTS = false;
+                        stopVoiceRecognition();
+                        updateVoiceButton();
+                        addChatMessage('❌ Brak dostępu do mikrofonu (STT)', 'assistant');
+                        return;
+                    }
+                    if (err === 'audio-capture') {
+                        voiceEnabled = false;
+                        sttPausedForTTS = false;
+                        stopVoiceRecognition();
+                        updateVoiceButton();
+                        addChatMessage('❌ Nie mogę użyć mikrofonu (audio-capture)', 'assistant');
+                        return;
+                    }
+
+                    scheduleVoiceRestart(err === 'no-speech' ? 350 : 800);
                 };
+
+                updateVoiceButton();
             }
         }
         
@@ -2785,13 +3234,29 @@ Przykładowe komendy:
                 alert('Rozpoznawanie głosu nie jest wspierane w tej przeglądarce. Użyj Chrome.');
                 return;
             }
-            
-            if (isListening) {
-                recognition.stop();
-            } else {
-                recognition.start();
+
+            if (!isSTTEnabled()) {
+                alert('STT jest wyłączony w ustawieniach. Włącz STT w ⚙️ Ustawieniach.');
+                return;
             }
+            
+            voiceEnabled = !voiceEnabled;
+            sttPausedForTTS = false;
+            if (voiceEnabled) {
+                startVoiceRecognition();
+            } else {
+                stopVoiceRecognition();
+            }
+            updateVoiceButton();
         }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (isListening) stopVoiceRecognition();
+                return;
+            }
+            scheduleVoiceRestart(200);
+        });
         
         // ===== LOCATION BAR UPDATE =====
         function updateLocationBar(view) {
@@ -2806,6 +3271,7 @@ Przykładowe komendy:
                 'home': '🏠 Smart Home',
                 'analytics': '📈 Analityka',
                 'internet': '🌐 Internet',
+                'media': '🖼️ Media',
                 'system': '⚙️ System'
             };
             
@@ -2858,6 +3324,12 @@ Przykładowe komendy:
                 {cmd: 'bitcoin', label: '₿ Crypto'},
                 {cmd: 'rss', label: '📰 News'},
                 {cmd: 'integracje', label: '🔌 Status'}
+            ],
+            'media': [
+                {cmd: 'media', label: '🖼️ Media'},
+                {cmd: 'pokaż zdjęcia', label: '🖼️ Zdjęcia'},
+                {cmd: 'pokaż filmy', label: '🎬 Filmy'},
+                {cmd: 'media folder ~/Downloads', label: '📥 Pobrane'}
             ],
             'system': [
                 {cmd: 'pomoc', label: '❓ Pomoc'},
@@ -3079,8 +3551,11 @@ Przykładowe komendy:
         
         function toggleSTTSetting() {
             const enabled = document.getElementById('stt-setting').value === 'on';
-            if (!enabled && isListening) {
-                recognition?.stop();
+            if (!enabled) {
+                voiceEnabled = false;
+                sttPausedForTTS = false;
+                stopVoiceRecognition();
+                updateVoiceButton();
             }
         }
         

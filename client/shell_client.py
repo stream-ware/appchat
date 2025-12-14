@@ -28,6 +28,8 @@ class CommandTest:
     expected_app_type: Optional[str] = None
     expected_action: Optional[str] = None
     expected_keywords: List[str] = None
+    expected_response_keywords: List[str] = None
+    forbid_generic_response: bool = True
     timeout: int = 10
     should_succeed: bool = True
 
@@ -42,6 +44,7 @@ class TestResult:
     action: Optional[str] = None
     error: Optional[str] = None
     response_data: Optional[Dict] = None
+    response_text: Optional[str] = None
 
 
 class StreamwareShellClient:
@@ -49,6 +52,7 @@ class StreamwareShellClient:
     
     def __init__(self, base_url: str = "http://localhost:8001"):
         self.base_url = base_url
+        self.session_id = f"shell_{int(datetime.now().timestamp() * 1000)}"
         self.session: Optional[aiohttp.ClientSession] = None
         self.results: List[TestResult] = []
     
@@ -71,7 +75,7 @@ class StreamwareShellClient:
             # Use command endpoint to simulate WebSocket command
             async with self.session.post(
                 f"{self.base_url}/api/command/send",
-                json={"command": command},
+                json={"command": command, "session_id": self.session_id},
                 timeout=10
             ) as resp:
                 response_time = (datetime.now() - start_time).total_seconds()
@@ -117,6 +121,7 @@ class StreamwareShellClient:
         if result["success"] and result["data"]:
             data = result["data"]
             response_data = data
+            response_text_value = data.get("response_text")
             
             # Extract from view data if available
             if "view" in data:
@@ -147,6 +152,21 @@ class StreamwareShellClient:
                     success = False
                     error = f"Expected keyword '{keyword}' not found in response"
                     break
+
+        if success and test.expected_response_keywords:
+            rt = (response_text_value or "")
+            low = rt.lower()
+            for keyword in test.expected_response_keywords:
+                if keyword.lower() not in low:
+                    success = False
+                    error = f"Expected response_text keyword '{keyword}' not found"
+                    break
+
+        if success and test.forbid_generic_response:
+            rt = (response_text_value or "").strip().lower()
+            if rt in ["ok, wyświetlam.", "ok", "wyświetlam.", "ok wyświetlam"]:
+                success = False
+                error = "Got generic response_text"
         
         test_result = TestResult(
             command=test.command,
@@ -155,7 +175,8 @@ class StreamwareShellClient:
             app_type=app_type,
             action=action,
             error=error,
-            response_data=response_data
+            response_data=response_data,
+            response_text=response_text_value
         )
         
         self.results.append(test_result)
@@ -238,6 +259,7 @@ BASIC_TESTS = [
     CommandTest("pokaż sprzedaż", "sales", "show_dashboard"),
     CommandTest("pogoda", "internet", "weather"),
     CommandTest("kursy walut", "internet", "exchange"),
+    CommandTest("mapa Berlin", "maps", "search"),
     CommandTest("rejestry", "registry", "show_all"),
     CommandTest("pokaż pliki", "files", "list"),
     CommandTest("chmura", "cloud_storage", "list_cloud"),
@@ -247,10 +269,17 @@ BASIC_TESTS = [
 
 INTERNET_TESTS = [
     CommandTest("pogoda", "internet", "weather", ["weather", "temperature"]),
-    CommandTest("pogoda kraków", "internet", "weather", ["kraków"]),
+    CommandTest("pogoda kraków", "internet", "weather_krakow", ["kraków"]),
     CommandTest("kursy walut", "internet", "exchange", ["eur", "usd", "pln"]),
     CommandTest("bitcoin", "internet", "crypto", ["bitcoin", "btc"]),
     CommandTest("rss", "internet", "rss", ["feed", "news"]),
+]
+
+MAPS_TESTS = [
+    CommandTest("mapa", "maps", "search", ["mapy"], expected_response_keywords=["podaj", "mapa berlin"]),
+    CommandTest("mapa Warszawa", "maps", "search", ["warszawa", "selected", "embed_url"], expected_response_keywords=["wyświetlam", "map"]),
+    CommandTest("mapa Berlin", "maps", "search", ["berlin", "selected", "embed_url"], expected_response_keywords=["wyświetlam", "map"]),
+    CommandTest("mapa wybierz 1", "maps", "select", ["selected", "embed_url"], expected_response_keywords=["wybrano", "wyświetlam"]),
 ]
 
 CLOUD_TESTS = [
@@ -276,10 +305,11 @@ DIAGNOSTIC_TESTS = [
 ALL_TEST_SUITES = {
     "basic": BASIC_TESTS,
     "internet": INTERNET_TESTS,
+    "maps": MAPS_TESTS,
     "cloud": CLOUD_TESTS,
     "files": FILES_TESTS,
     "diagnostic": DIAGNOSTIC_TESTS,
-    "all": BASIC_TESTS + INTERNET_TESTS + CLOUD_TESTS + FILES_TESTS + DIAGNOSTIC_TESTS,
+    "all": BASIC_TESTS + INTERNET_TESTS + MAPS_TESTS + CLOUD_TESTS + FILES_TESTS + DIAGNOSTIC_TESTS,
 }
 
 

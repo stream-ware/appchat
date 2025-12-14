@@ -16,6 +16,7 @@ ALLOWED_DIRS = [
     Path.home() / "Documents",
     Path.home() / "Downloads",
     Path.home() / "Pictures",
+    Path.home() / "Videos",
 ]
 
 # Blocked patterns for security
@@ -78,6 +79,11 @@ class Text2Filesystem:
         "zdjęcia": "Pictures",
         "obrazy": "Pictures",
         "pictures": "Pictures",
+        "wideo": "Videos",
+        "video": "Videos",
+        "videos": "Videos",
+        "filmy": "Videos",
+        "movies": "Videos",
         "pulpit": "Desktop",
         "desktop": "Desktop",
         "home": "",

@@ -1,0 +1,31 @@
+[app]
+id = "media"
+name = "🖼️ Media"
+version = "1.0.0"
+description = "Przeglądarka lokalnych zdjęć i filmów"
+language = "python"
+author = "Streamware"
+enabled = true
+
+[app.permissions]
+required = ["filesystem"]
+optional = []
+
+[commands]
+"media" = ["media", "browse"]
+"pokaż media" = ["media", "browse"]
+"galeria" = ["media", "browse"]
+"pokaż zdjęcia" = ["media", "pictures"]
+"zdjęcia" = ["media", "pictures"]
+"pokaż filmy" = ["media", "videos"]
+"filmy" = ["media", "videos"]
+"media folder" = ["media", "folder"]
+"media katalog" = ["media", "folder"]
+
+[commands.keywords]
+media = ["media", "galeria", "zdjęcia", "filmy", "wideo", "album", "photo", "video"]
+
+[ui]
+icon = "🖼️"
+color = "#a855f7"
+dashboard_widget = true

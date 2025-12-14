@@ -2,7 +2,7 @@
 # Run automated tests for apps and services
 
 PYTHON ?= python3
-VENV ?= ../venv/bin/python
+VENV ?= $(abspath ../venv/bin/python)
 
 .PHONY: help all apps services sandbox quick report clean
 
@@ -29,6 +29,7 @@ help:
 	@echo "Shell Client Suites:"
 	@echo "  shell-basic   - Basic command tests"
 	@echo "  shell-internet- Internet integration tests"
+	@echo "  shell-maps    - Maps/geocoding tests"
 	@echo "  shell-cloud   - Cloud storage tests"
 	@echo "  shell-files   - File management tests"
 	@echo "  shell-diagnostic- Diagnostic tests"
@@ -126,6 +127,9 @@ shell-basic:
 
 shell-internet:
 	@cd .. && $(VENV) -m client.shell_client --suite internet
+
+shell-maps:
+	@cd .. && $(VENV) -m client.shell_client --suite maps
 
 shell-cloud:
 	@cd .. && $(VENV) -m client.shell_client --suite cloud

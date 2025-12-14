@@ -288,16 +288,16 @@ class TestRunner:
                     scripts = list(scripts_dir.glob("*.py"))
                     if scripts:
                         main_script = scripts[0]
-                        
+
                         # First: syntax/import check (more reliable)
                         import subprocess
                         syntax_check = subprocess.run(
-                            ["python", "-m", "py_compile", str(main_script.absolute())],
+                            ["python3", "-m", "py_compile", str(main_script)],
                             capture_output=True,
                             text=True,
                             timeout=10
                         )
-                        
+
                         if syntax_check.returncode != 0:
                             return TestResult(
                                 name="sandbox_run",
@@ -306,19 +306,19 @@ class TestRunner:
                                 message="Script has syntax errors",
                                 error=syntax_check.stderr[:300]
                             )
-                        
+
                         # Second: try to run script (may fail due to missing args - that's OK)
                         if self.use_sandbox:
                             sandbox_id = sandbox_manager.create_sandbox(app_id)
                             result = await sandbox_manager.run_in_sandbox(
                                 sandbox_id,
-                                f"python {main_script} --help 2>/dev/null || python {main_script} 2>&1 || true",
+                                f"python3 {main_script} --help 2>/dev/null || python3 {main_script} 2>&1 || true",
                                 working_dir=str(app_dir.absolute())
                             )
                             sandbox_manager.destroy_sandbox(sandbox_id)
                         else:
                             proc = subprocess.run(
-                                ["python", str(main_script)],
+                                ["python3", str(main_script)],
                                 cwd=str(app_dir),
                                 capture_output=True,
                                 text=True,
@@ -330,12 +330,12 @@ class TestRunner:
                                 "stderr": proc.stderr,
                                 "exit_code": proc.returncode
                             }
-                        
+
                         # Script is valid if syntax check passed
                         # Execution failure (missing args) is acceptable
                         stdout = result.get("stdout", "")
                         has_output = len(stdout) > 0 or len(result.get("stderr", "")) > 0
-                        
+
                         return TestResult(
                             name="sandbox_run",
                             status=TestStatus.PASSED,
@@ -356,14 +356,14 @@ class TestRunner:
                 sandbox_id = sandbox_manager.create_sandbox(app_id)
                 result = await sandbox_manager.run_in_sandbox(
                     sandbox_id,
-                    f"python -m pytest {test_file} -v",
+                    f"python3 -m pytest {test_file} -v",
                     working_dir=str(app_dir.absolute())
                 )
                 sandbox_manager.destroy_sandbox(sandbox_id)
             else:
                 import subprocess
                 proc = subprocess.run(
-                    ["python", "-m", "pytest", str(test_file), "-v"],
+                    ["python3", "-m", "pytest", str(test_file), "-v"],
                     cwd=str(app_dir),
                     capture_output=True,
                     text=True,

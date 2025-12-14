@@ -1,0 +1,162 @@
+{
+  "bojano": {
+    "success": true,
+    "query": "bojano",
+    "results": [
+      {
+        "name": "Bojano",
+        "country": "Włochy",
+        "admin": "Molise",
+        "latitude": 41.4853,
+        "longitude": 14.47075,
+        "population": 6014,
+        "timezone": "Europe/Rome"
+      },
+      {
+        "name": "Bojano",
+        "country": "Polska",
+        "admin": "Województwo pomorskie",
+        "latitude": 54.47123,
+        "longitude": 18.38408,
+        "population": 2100,
+        "timezone": "Europe/Warsaw"
+      },
+      {
+        "name": "Bojanów",
+        "country": "Polska",
+        "admin": "województwo podkarpackie",
+        "latitude": 50.42531,
+        "longitude": 21.95111,
+        "population": 1200,
+        "timezone": "Europe/Warsaw"
+      },
+      {
+        "name": "Bojanowo",
+        "country": "Polska",
+        "admin": "województwo wielkopolskie",
+        "latitude": 51.70749,
+        "longitude": 16.74827,
+        "population": 2960,
+        "timezone": "Europe/Warsaw"
+      },
+      {
+        "name": "Bojanów",
+        "country": "Polska",
+        "admin": "Województwo śląskie",
+        "latitude": 50.02886,
+        "longitude": 18.16546,
+        "population": 832,
+        "timezone": "Europe/Warsaw"
+      }
+    ]
+  },
+  "berlin": {
+    "success": true,
+    "query": "Berlin",
+    "results": [
+      {
+        "name": "Berlin",
+        "country": "Niemcy",
+        "admin": "Land Berlin",
+        "latitude": 52.52437,
+        "longitude": 13.41053,
+        "population": 3426354,
+        "timezone": "Europe/Berlin"
+      },
+      {
+        "name": "Berlin",
+        "country": "USA",
+        "admin": "New Hampshire",
+        "latitude": 44.46867,
+        "longitude": -71.18508,
+        "population": 9367,
+        "timezone": "America/New_York"
+      },
+      {
+        "name": "Berlin",
+        "country": "USA",
+        "admin": "New Jersey",
+        "latitude": 39.79123,
+        "longitude": -74.92905,
+        "population": 7590,
+        "timezone": "America/New_York"
+      },
+      {
+        "name": "Berlin",
+        "country": "USA",
+        "admin": "Wisconsin",
+        "latitude": 43.96804,
+        "longitude": -88.94345,
+        "population": 5420,
+        "timezone": "America/Chicago"
+      },
+      {
+        "name": "Berlin",
+        "country": "USA",
+        "admin": "Maryland",
+        "latitude": 38.32262,
+        "longitude": -75.21769,
+        "population": 4529,
+        "timezone": "America/New_York"
+      }
+    ]
+  },
+  "warszawa": {
+    "success": true,
+    "query": "Warszawa",
+    "results": [
+      {
+        "name": "Warszawa",
+        "country": "Polska",
+        "admin": "Województwo mazowieckie",
+        "latitude": 52.22977,
+        "longitude": 21.01178,
+        "population": 1702139,
+        "timezone": "Europe/Warsaw"
+      },
+      {
+        "name": "Slavic Village",
+        "country": "USA",
+        "admin": "Ohio",
+        "latitude": 41.45616,
+        "longitude": -81.64485,
+        "population": null,
+        "timezone": "America/New_York"
+      },
+      {
+        "name": "Warszawa Neighborhood Historic District",
+        "country": "USA",
+        "admin": "Ohio",
+        "latitude": 41.4595,
+        "longitude": -81.64485,
+        "population": null,
+        "timezone": "America/New_York"
+      }
+    ]
+  },
+  "donimierz": {
+    "success": true,
+    "query": "donimierz",
+    "results": [
+      {
+        "name": "Donimierz",
+        "country": "Polska",
+        "admin": "Województwo pomorskie",
+        "latitude": 54.47819,
+        "longitude": 18.19371,
+        "population": null,
+        "timezone": "Europe/Warsaw"
+      }
+    ]
+  },
+  "do niemiec": {
+    "success": true,
+    "query": "do Niemiec",
+    "results": []
+  },
+  "kamerę w sieci": {
+    "success": true,
+    "query": "kamerę w sieci",
+    "results": []
+  }
+}
